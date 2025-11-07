@@ -1,0 +1,520 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USER MANAGEMENT & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String?  // nullable for OAuth users
+  department String  // Training, Admin, Management, Support
+  status    String   @default("Active") // Active, Inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userRoles       UserRole[]
+  policies        Policy[]
+  credentials     Credential[]
+  pdItems         PDItem[]
+  trainingProducts TrainingProduct[]
+  complaints      Complaint[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+
+  @@index([email])
+  @@index([department])
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // Trainer, SystemAdmin, ComplianceAdmin
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userRoles   UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  resource    String   // policies, users, standards, etc.
+  action      String   // create, read, update, delete
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@index([resource])
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================================================
+// GOVERNANCE & POLICIES
+// ============================================================================
+
+model Policy {
+  id          String   @id @default(uuid())
+  title       String
+  ownerId     String
+  status      String   @default("Draft") // Draft, Published, Archived
+  reviewDate  DateTime?
+  fileUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // soft delete
+
+  // Relations
+  owner             User                    @relation(fields: [ownerId], references: [id])
+  versions          PolicyVersion[]
+  standardMappings  PolicyStandardMapping[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([reviewDate])
+  @@index([deletedAt])
+  @@map("policies")
+}
+
+model PolicyVersion {
+  id          String   @id @default(uuid())
+  policyId    String
+  version     String
+  content     String?  @db.Text
+  fileUrl     String?
+  isCurrent   Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([policyId])
+  @@index([isCurrent])
+  @@map("policy_versions")
+}
+
+model Standard {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g., "Standard 1", "1.1", "1.2"
+  title       String
+  clause      String?
+  description String?  @db.Text
+  category    String?  // Grouping for standards
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  policyMappings PolicyStandardMapping[]
+  sopMappings    SOPStandardMapping[]
+
+  @@index([code])
+  @@index([category])
+  @@map("standards")
+}
+
+model PolicyStandardMapping {
+  id         String   @id @default(uuid())
+  policyId   String
+  standardId String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  policy   Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  standard Standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, standardId])
+  @@index([policyId])
+  @@index([standardId])
+  @@map("policy_standard_mappings")
+}
+
+// ============================================================================
+// TRAINING PRODUCTS & SOPs
+// ============================================================================
+
+model TrainingProduct {
+  id                     String   @id @default(uuid())
+  code                   String   @unique
+  name                   String
+  status                 String   @default("Active") // Active, Inactive
+  assessmentStrategyUrl  String?
+  validationReportUrl    String?
+  isAccredited           Boolean  @default(true)
+  ownerId                String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  deletedAt              DateTime? // soft delete
+
+  // Relations
+  owner          User?                  @relation(fields: [ownerId], references: [id])
+  sopMappings    TrainingProductSOP[]
+  feedback       Feedback[]
+  complaints     Complaint[]
+
+  @@index([code])
+  @@index([status])
+  @@index([ownerId])
+  @@index([deletedAt])
+  @@map("training_products")
+}
+
+model SOP {
+  id          String   @id @default(uuid())
+  title       String
+  version     String
+  fileUrl     String?
+  policyId    String?
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // soft delete
+
+  // Relations
+  trainingProducts TrainingProductSOP[]
+  standardMappings SOPStandardMapping[]
+
+  @@index([policyId])
+  @@index([deletedAt])
+  @@map("sops")
+}
+
+model TrainingProductSOP {
+  id                String   @id @default(uuid())
+  trainingProductId String
+  sopId             String
+  createdAt         DateTime @default(now())
+
+  // Relations
+  trainingProduct TrainingProduct @relation(fields: [trainingProductId], references: [id], onDelete: Cascade)
+  sop             SOP             @relation(fields: [sopId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingProductId, sopId])
+  @@index([trainingProductId])
+  @@index([sopId])
+  @@map("training_product_sops")
+}
+
+model SOPStandardMapping {
+  id         String   @id @default(uuid())
+  sopId      String
+  standardId String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  sop      SOP      @relation(fields: [sopId], references: [id], onDelete: Cascade)
+  standard Standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+
+  @@unique([sopId, standardId])
+  @@index([sopId])
+  @@index([standardId])
+  @@map("sop_standard_mappings")
+}
+
+// ============================================================================
+// PROFESSIONAL DEVELOPMENT & CREDENTIALS
+// ============================================================================
+
+model Credential {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  type        String    // Certificate, License, Qualification
+  issuedAt    DateTime
+  expiresAt   DateTime?
+  evidenceUrl String?
+  status      String    @default("Active") // Active, Expired, Revoked
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([status])
+  @@map("credentials")
+}
+
+model PDItem {
+  id          String    @id @default(uuid())
+  userId      String
+  title       String
+  description String?   @db.Text
+  hours       Float?
+  dueAt       DateTime?
+  completedAt DateTime?
+  evidenceUrl String?
+  status      String    @default("Planned") // Planned, Due, Overdue, Completed, Verified
+  category    String?   // Vocational, Industry, Pedagogical
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([dueAt])
+  @@index([status])
+  @@map("pd_items")
+}
+
+// ============================================================================
+// FEEDBACK MANAGEMENT
+// ============================================================================
+
+model Feedback {
+  id                String    @id @default(uuid())
+  type              String    // learner, employer, industry
+  trainingProductId String?
+  trainerId         String?
+  courseId          String?
+  rating            Float?
+  comments          String?   @db.Text
+  anonymous         Boolean   @default(false)
+  sentiment         Float?    // AI-generated sentiment score (-1 to 1)
+  themes            String[]  // AI-extracted themes
+  submittedAt       DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  trainingProduct TrainingProduct? @relation(fields: [trainingProductId], references: [id])
+
+  @@index([type])
+  @@index([trainingProductId])
+  @@index([trainerId])
+  @@index([submittedAt])
+  @@map("feedback")
+}
+
+// ============================================================================
+// ASSET & RESOURCE MANAGEMENT
+// ============================================================================
+
+model Asset {
+  id            String    @id @default(uuid())
+  type          String    // crane, plant, tablet, laptop, lifting equipment
+  name          String
+  serialNumber  String?
+  location      String?
+  status        String    @default("Available") // Available, Assigned, Servicing, Retired
+  purchaseDate  DateTime?
+  purchaseCost  Float?
+  lastServiceAt DateTime?
+  nextServiceAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // soft delete
+
+  // Relations
+  services AssetService[]
+
+  @@index([type])
+  @@index([status])
+  @@index([nextServiceAt])
+  @@index([deletedAt])
+  @@map("assets")
+}
+
+model AssetService {
+  id          String   @id @default(uuid())
+  assetId     String
+  serviceDate DateTime
+  servicedBy  String?
+  notes       String?  @db.Text
+  cost        Float?
+  documents   String[] // Array of document URLs
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId])
+  @@index([serviceDate])
+  @@map("asset_services")
+}
+
+// ============================================================================
+// COMPLAINTS & APPEALS
+// ============================================================================
+
+model Complaint {
+  id                String    @id @default(uuid())
+  source            String    // Student, Staff, Employer, External
+  description       String    @db.Text
+  status            String    @default("New") // New, InReview, Actioned, Closed
+  studentId         String?
+  trainerId         String?
+  trainingProductId String?
+  courseId          String?
+  rootCause         String?   @db.Text
+  correctiveAction  String?   @db.Text
+  submittedAt       DateTime  @default(now())
+  closedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  trainer         User?            @relation(fields: [trainerId], references: [id])
+  trainingProduct TrainingProduct? @relation(fields: [trainingProductId], references: [id])
+  timeline        ComplaintTimeline[]
+
+  @@index([status])
+  @@index([trainerId])
+  @@index([trainingProductId])
+  @@index([submittedAt])
+  @@map("complaints")
+}
+
+model ComplaintTimeline {
+  id          String   @id @default(uuid())
+  complaintId String
+  status      String
+  notes       String?  @db.Text
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@index([createdAt])
+  @@map("complaint_timeline")
+}
+
+// ============================================================================
+// EVIDENCE & DOCUMENTATION
+// ============================================================================
+
+model Evidence {
+  id          String    @id @default(uuid())
+  entityType  String    // Policy, Standard, Asset, Complaint, etc.
+  entityId    String    // References the ID of the related entity
+  url         String
+  description String?   @db.Text
+  uploadedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime? // soft delete
+
+  @@index([entityType, entityId])
+  @@index([deletedAt])
+  @@map("evidence")
+}
+
+// ============================================================================
+// SYSTEM & AUTOMATION
+// ============================================================================
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String    // email, sms, in-app
+  title     String
+  message   String    @db.Text
+  read      Boolean   @default(false)
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Job {
+  id          String    @id @default(uuid())
+  name        String    // syncXero, syncAccelerate, pdReminders, policyReviews
+  status      String    @default("Scheduled") // Scheduled, Running, Completed, Failed
+  schedule    String?   // Cron expression
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  lastResult  String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([name])
+  @@index([status])
+  @@index([nextRunAt])
+  @@map("jobs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String   // create, update, delete
+  entityType String   // Policy, User, Standard, etc.
+  entityId   String
+  changes    Json?    // JSON object with before/after values
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
