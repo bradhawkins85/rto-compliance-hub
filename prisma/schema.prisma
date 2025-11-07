@@ -521,3 +521,45 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+// ============================================================================
+// GOOGLE DRIVE INTEGRATION
+// ============================================================================
+
+model DriveFile {
+  id            String    @id @default(uuid())
+  driveFileId   String    @unique // Google Drive file ID
+  name          String
+  mimeType      String
+  size          BigInt?
+  entityType    String    // Policy, SOP, Evidence, Asset, Credential, etc.
+  entityId      String    // References the ID of the related entity
+  folderPath    String?   // Logical folder path in Drive
+  webViewLink   String?   // Shareable view link
+  webContentLink String?  // Direct download link
+  thumbnailLink String?   // Thumbnail preview link
+  version       Int       @default(1)
+  uploadedBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // soft delete
+
+  @@index([driveFileId])
+  @@index([entityType, entityId])
+  @@index([uploadedBy])
+  @@index([deletedAt])
+  @@map("drive_files")
+}
+
+model DriveToken {
+  id           String    @id @default(uuid())
+  accessToken  String    @db.Text
+  refreshToken String?   @db.Text
+  tokenType    String    @default("Bearer")
+  expiresAt    DateTime
+  scope        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("drive_tokens")
+}
