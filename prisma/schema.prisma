@@ -205,10 +205,11 @@ model TrainingProduct {
   deletedAt              DateTime? // soft delete
 
   // Relations
-  owner          User?                  @relation(fields: [ownerId], references: [id])
-  sopMappings    TrainingProductSOP[]
-  feedback       Feedback[]
-  complaints     Complaint[]
+  owner               User?                     @relation(fields: [ownerId], references: [id])
+  sopMappings         TrainingProductSOP[]
+  feedback            Feedback[]
+  complaints          Complaint[]
+  accelerateEnrollments AccelerateEnrollment[]
 
   @@index([code])
   @@index([status])
@@ -520,4 +521,95 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// EXTERNAL INTEGRATIONS - ACCELERATE LMS
+// ============================================================================
+
+model AccelerateSyncLog {
+  id            String    @id @default(uuid())
+  syncType      String    // trainers, students, enrollments, completions, full
+  status        String    @default("Running") // Running, Completed, Failed
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  recordsTotal  Int?      // Total records to sync
+  recordsSynced Int       @default(0)
+  recordsFailed Int       @default(0)
+  errorMessage  String?   @db.Text
+  triggeredBy   String?   // user ID or "scheduled"
+  metadata      Json?     // Additional sync context
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([syncType])
+  @@index([startedAt])
+  @@map("accelerate_sync_logs")
+}
+
+model AccelerateMapping {
+  id                  String   @id @default(uuid())
+  accelerateId        String   @unique // ID in Accelerate system
+  accelerateType      String   // trainer, student, course, enrollment
+  internalId          String   // ID in our system
+  internalType        String   // User, TrainingProduct, etc.
+  lastSyncedAt        DateTime @default(now())
+  metadata            Json?    // Additional mapping data
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([accelerateId])
+  @@index([internalId])
+  @@index([accelerateType])
+  @@index([internalType])
+  @@map("accelerate_mappings")
+}
+
+model AccelerateStudent {
+  id                  String   @id @default(uuid())
+  accelerateId        String   @unique
+  firstName           String
+  lastName            String
+  email               String?
+  phone               String?
+  enrollmentStatus    String?  // Active, Completed, Withdrawn
+  metadata            Json?    // Raw data from Accelerate
+  lastSyncedAt        DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  enrollments AccelerateEnrollment[]
+
+  @@index([accelerateId])
+  @@index([email])
+  @@map("accelerate_students")
+}
+
+model AccelerateEnrollment {
+  id                  String    @id @default(uuid())
+  accelerateId        String    @unique
+  studentId           String
+  courseId            String    // Maps to TrainingProduct
+  trainingProductId   String?
+  enrolledAt          DateTime
+  status              String    // enrolled, in_progress, completed, withdrawn
+  completedAt         DateTime?
+  completionStatus    String?   // pass, fail, competent, not_competent
+  metadata            Json?     // Raw enrollment data from Accelerate
+  lastSyncedAt        DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  student         AccelerateStudent @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  trainingProduct TrainingProduct?  @relation(fields: [trainingProductId], references: [id])
+
+  @@index([accelerateId])
+  @@index([studentId])
+  @@index([courseId])
+  @@index([trainingProductId])
+  @@index([status])
+  @@map("accelerate_enrollments")
 }
