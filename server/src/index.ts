@@ -6,6 +6,10 @@ import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import policiesRoutes from './routes/policies';
 import standardsRoutes from './routes/standards';
+import trainingProductsRoutes from './routes/trainingProducts';
+import sopsRoutes from './routes/sops';
+import pdRoutes from './routes/pd';
+import credentialsRoutes from './routes/credentials';
 import { apiRateLimiter } from './middleware/rateLimit';
 
 // Load environment variables
@@ -64,6 +68,10 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/policies', policiesRoutes);
 app.use('/api/v1/standards', standardsRoutes);
+app.use('/api/v1/training-products', trainingProductsRoutes);
+app.use('/api/v1/sops', sopsRoutes);
+app.use('/api/v1/pd', pdRoutes);
+app.use('/api/v1/credentials', credentialsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
