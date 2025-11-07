@@ -118,8 +118,10 @@ export function StaffView() {
 
       <div className="grid gap-4">
         {filteredStaff.map((member) => {
-          // Note: Basic user list doesn't include credentials
-          // We would need to fetch individual users or enhance the backend
+          // TODO: Basic user list API doesn't include credentials
+          // Options: 1) Enhance backend to include credentials in list response
+          //          2) Fetch individual users with useUser(id) when needed
+          //          3) Add backend endpoint for bulk user details with credentials
           const credentials: any[] = []
           const pdStatus = getPDStatus(credentials)
 

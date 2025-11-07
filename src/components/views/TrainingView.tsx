@@ -80,9 +80,10 @@ export function TrainingView() {
 
       <div className="grid gap-4">
         {filteredProducts.map((product) => {
-          // Note: The basic list API doesn't include SOP/assessment/validation details
-          // We would need to fetch each product individually or enhance the backend
-          // For now, we'll show placeholder values
+          // TODO: Backend list API doesn't include SOP/assessment/validation details
+          // Options: 1) Enhance backend to include these in list response
+          //          2) Fetch individual products with useTrainingProduct(id)
+          //          3) Add backend endpoint for bulk product details
           const hasSOP = false
           const hasAssessment = false
           const hasValidation = false

@@ -29,7 +29,8 @@ export const dashboardApi = {
       // Calculate metrics
       const totalStandards = standardsResponse.data.pagination?.total || standards.length;
       
-      // Count standards with mappings (assuming we need to fetch mappings)
+      // TODO: Backend should provide actual mapping counts in the standards list response
+      // For now, we use the total count as mapped (simplified)
       const mappedStandards = standards.length; // Simplified - would need actual mapping data
 
       // Count policies due for review (within 30 days)
@@ -40,11 +41,10 @@ export const dashboardApi = {
         return reviewDate >= now && reviewDate <= thirtyDaysFromNow;
       }).length;
 
-      // Count credentials expiring (would need to fetch from users with credentials)
-      const credentialsExpiring = 0; // Simplified
-
-      // Count incomplete products (would need product details)
-      const incompleteProducts = 0; // Simplified
+      // TODO: Backend should provide these metrics via a dedicated /dashboard/metrics endpoint
+      // Credentials and incomplete products require individual user/product fetches
+      const credentialsExpiring = 0; // Requires fetching all users with credentials
+      const incompleteProducts = 0; // Requires fetching all products with details
 
       // Calculate overall compliance (simplified)
       const overallCompliance = Math.round(

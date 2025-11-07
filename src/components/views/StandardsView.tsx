@@ -95,8 +95,9 @@ export function StandardsView() {
 
       <div className="grid gap-4">
         {filteredStandards.map((standard) => {
-          // For now, we don't have mapping counts directly, so we'll need to fetch them
-          // or modify the backend to include them. For now, use placeholder values
+          // TODO: Backend should include mapping counts in standards list response
+          // Alternative: Call useStandardMappings(standard.id) for each standard
+          // Note: This would make N+1 API calls, better to enhance backend
           const mappedPolicies = 0
           const mappedEvidence = 0
           const status = getStatusFromMappings(mappedPolicies, mappedEvidence)
