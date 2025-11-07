@@ -17,6 +17,8 @@ Visit `http://localhost:5173` to see the application.
 - **[FEATURE_SUMMARY.md](./FEATURE_SUMMARY.md)** - Quick reference of implemented features
 - **[IMPLEMENTATION_INVENTORY.md](./IMPLEMENTATION_INVENTORY.md)** - Comprehensive technical documentation
 - **[PRD.md](./PRD.md)** - Product requirements and design specifications
+- **[GAP_ANALYSIS.md](./GAP_ANALYSIS.md)** - Detailed gap analysis of missing functions (32KB)
+- **[MISSING_FUNCTIONS_SUMMARY.md](./MISSING_FUNCTIONS_SUMMARY.md)** - Quick reference for sub-task creation (25 tasks)
 
 ## 🎯 Current Status
 
