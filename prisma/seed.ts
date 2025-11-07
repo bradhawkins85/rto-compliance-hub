@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -491,16 +492,21 @@ async function main() {
   } else {
     console.log('👤 Creating default admin user...');
     
+    // For development/testing, create admin with default password
+    // In production, password should be null and set via reset flow
+    let adminPassword = null;
     if (process.env.NODE_ENV !== 'production') {
-      console.log('⚠️  WARNING: Default admin user created without password.');
-      console.log('⚠️  Password must be set via password reset flow before use.');
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123!';
+      adminPassword = await bcrypt.hash(defaultPassword, 10);
+      console.log(`⚠️  WARNING: Default admin user created with password: ${defaultPassword}`);
+      console.log('⚠️  Change this password immediately in production!');
     }
     
     const adminUser = await prisma.user.create({
       data: {
         email: process.env.ADMIN_EMAIL || 'admin@rto-compliance-hub.local',
         name: 'System Administrator',
-        password: null, // Password must be set via password reset
+        password: adminPassword,
         department: 'Admin',
         status: 'Active',
       },
@@ -515,7 +521,10 @@ async function main() {
       });
     }
 
-    console.log(`✅ Created default admin user (email: ${adminUser.email}, password: NOT SET - use password reset)`);
+    console.log(`✅ Created default admin user (email: ${adminUser.email})`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`   Default password: ${process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123!'}`);
+    }
   }
 
   // Create some default jobs
