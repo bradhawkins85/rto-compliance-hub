@@ -25,6 +25,8 @@ dist-ssr
 *.sw?
 
 .env
+.env.local
+.env.production
 **/agent-eval-report*
 packages
 pids
@@ -32,3 +34,15 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Prisma
+migrations/
+.prisma/
+
+/src/generated/prisma
