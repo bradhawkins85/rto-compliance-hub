@@ -1,23 +1,58 @@
-# ✨ Welcome to Your Spark Template!
-You've just launched your brand-new Spark Template Codespace — everything’s fired up and ready for you to explore, build, and create with Spark!
+# RTO Compliance Hub
 
-This template is your blank canvas. It comes with a minimal setup to help you get started quickly with Spark development.
+A comprehensive compliance management platform for Registered Training Organizations (RTOs), demonstrating professional UI patterns for tracking standards, policies, training products, and staff credentials.
 
-🚀 What's Inside?
-- A clean, minimal Spark environment
-- Pre-configured for local development
-- Ready to scale with your ideas
-  
-🧠 What Can You Do?
+## 🚀 Quick Start
 
-Right now, this is just a starting point — the perfect place to begin building and testing your Spark applications.
+```bash
+npm install
+npm run dev
+```
 
-🧹 Just Exploring?
-No problem! If you were just checking things out and don’t need to keep this code:
+Visit `http://localhost:5173` to see the application.
 
-- Simply delete your Spark.
-- Everything will be cleaned up — no traces left behind.
+## 📚 Documentation
 
-📄 License For Spark Template Resources 
+- **[INVENTORY_INDEX.md](./INVENTORY_INDEX.md)** - Start here for documentation navigation
+- **[FEATURE_SUMMARY.md](./FEATURE_SUMMARY.md)** - Quick reference of implemented features
+- **[IMPLEMENTATION_INVENTORY.md](./IMPLEMENTATION_INVENTORY.md)** - Comprehensive technical documentation
+- **[PRD.md](./PRD.md)** - Product requirements and design specifications
+
+## 🎯 Current Status
+
+**Frontend Prototype**: 85% Complete ✅
+- 5 main views (Overview, Standards, Policies, Training, Staff)
+- 51 components (4 custom + 47 UI library)
+- Responsive design with TailwindCSS
+- Mock data structure
+
+**Backend Infrastructure**: 0% Not Started ❌
+- No API layer yet
+- No database integration
+- No authentication
+
+**Overall Platform Completion**: ~15-20%
+
+See [INVENTORY_INDEX.md](./INVENTORY_INDEX.md) for detailed status.
+
+## 🛠️ Tech Stack
+
+- React 19 + TypeScript 5.7
+- Vite 6.3 (build tool)
+- TailwindCSS 4.1 (styling)
+- Radix UI (component library)
+- Phosphor Icons
+- React Hook Form + Zod
+
+## 🧹 Development Commands
+
+```bash
+npm run dev      # Start dev server
+npm run build    # Production build
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
+```
+
+## 📄 License
 
 The Spark Template files and resources from GitHub are licensed under the terms of the MIT license, Copyright GitHub, Inc.
