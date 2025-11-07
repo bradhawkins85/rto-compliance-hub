@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../utils/password';
+import { hashPassword, validatePasswordStrength } from '../utils/password';
 import { createAuditLog } from '../middleware/audit';
 import {
   getPaginationParams,
@@ -44,16 +44,21 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
     const sortParams = parseSortParams(req);
     const fields = parseFieldsParams(req);
 
-    // Build where clause
-    const where: any = {
-      status: { not: 'Inactive' }, // Exclude inactive users (soft deleted)
-    };
+    // Build where clause - only include active users by default
+    // unless explicitly filtering by Inactive status
+    const where: any = {};
+    
+    // Only exclude inactive users if not explicitly requesting them
+    if (status !== 'Inactive') {
+      where.status = { not: 'Inactive' };
+    }
 
     if (department) {
       where.department = department;
     }
 
     if (status) {
+      // If status is explicitly provided, use it
       where.status = status;
     }
 
@@ -259,8 +264,23 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Hash password if provided
-    const hashedPassword = password ? await hashPassword(password) : null;
+    // Validate and hash password if provided
+    let hashedPassword = null;
+    if (password) {
+      const passwordValidation = validatePasswordStrength(password);
+      if (!passwordValidation.valid) {
+        res.status(400).json({
+          type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'Password does not meet strength requirements',
+          errors: passwordValidation.errors.map(err => ({ field: 'password', message: err })),
+          instance: req.path,
+        });
+        return;
+      }
+      hashedPassword = await hashPassword(password);
+    }
 
     // Create user with transaction
     const user = await prisma.$transaction(async (tx) => {

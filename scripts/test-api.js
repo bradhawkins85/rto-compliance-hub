@@ -15,7 +15,13 @@ const http = require('http');
 
 const API_BASE = 'http://localhost:3000';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@rto-compliance-hub.local';
-const ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123!';
+const ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD;
+
+if (!ADMIN_PASSWORD) {
+  console.error('❌ ERROR: DEFAULT_ADMIN_PASSWORD environment variable is required');
+  console.error('   Set it before running tests: export DEFAULT_ADMIN_PASSWORD=your_password');
+  process.exit(1);
+}
 
 let accessToken = '';
 let createdUserId = '';

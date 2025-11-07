@@ -13,9 +13,15 @@ export const paginationSchema = z.object({
   perPage: z.coerce.number().int().min(1).max(100).optional().default(30),
 });
 
-export const sortSchema = z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*(:(asc|desc))?(,[a-zA-Z_][a-zA-Z0-9_]*(:(asc|desc))?)*$/).optional();
+// Regex pattern for sorting: field:direction pairs separated by commas
+// Example: "name:asc,createdAt:desc"
+const SORT_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*(:(asc|desc))?(,[a-zA-Z_][a-zA-Z0-9_]*(:(asc|desc))?)*$/;
+export const sortSchema = z.string().regex(SORT_PATTERN).optional();
 
-export const fieldsSchema = z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*(,[a-zA-Z_][a-zA-Z0-9_]*)*$/).optional();
+// Regex pattern for field selection: comma-separated field names
+// Example: "id,name,email,department"
+const FIELDS_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*(,[a-zA-Z_][a-zA-Z0-9_]*)*$/;
+export const fieldsSchema = z.string().regex(FIELDS_PATTERN).optional();
 
 /**
  * User validation schemas

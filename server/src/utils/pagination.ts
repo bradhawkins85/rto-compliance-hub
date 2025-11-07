@@ -25,8 +25,8 @@ export interface PaginatedResponse<T> {
  * Extract and validate pagination parameters from request
  */
 export function getPaginationParams(req: Request): PaginationParams {
-  const page = Math.max(1, parseInt(req.query.page as string) || 1);
-  const perPage = Math.min(100, Math.max(1, parseInt(req.query.perPage as string) || 30));
+  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+  const perPage = Math.min(100, Math.max(1, parseInt(req.query.perPage as string, 10) || 30));
   const skip = (page - 1) * perPage;
   const take = perPage;
 
