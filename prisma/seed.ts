@@ -482,13 +482,20 @@ async function main() {
 
   console.log('✅ Assigned permissions to roles');
 
-  // Create a default system admin user (password should be changed in production)
+  // Create a default system admin user
+  // NOTE: In production, either:
+  // 1. Require admin password via environment variable: process.env.ADMIN_PASSWORD
+  // 2. Generate a random password and output it securely
+  // 3. Use OAuth/SSO and don't set a password
   console.log('👤 Creating default admin user...');
+  console.log('⚠️  WARNING: Default admin user created without password.');
+  console.log('⚠️  Password must be set via password reset flow before use.');
+  
   const adminUser = await prisma.user.create({
     data: {
       email: 'admin@rto-compliance-hub.local',
       name: 'System Administrator',
-      password: '$2a$10$defaulthashedpassword', // This should use bcrypt in production
+      password: null, // Password must be set via password reset
       department: 'Admin',
       status: 'Active',
     },
@@ -503,7 +510,7 @@ async function main() {
     });
   }
 
-  console.log('✅ Created default admin user (email: admin@rto-compliance-hub.local)');
+  console.log('✅ Created default admin user (email: admin@rto-compliance-hub.local, password: NOT SET - use password reset)');
 
   // Create some default jobs
   console.log('⚙️ Creating default jobs...');

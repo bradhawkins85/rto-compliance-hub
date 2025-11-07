@@ -77,8 +77,7 @@ export const userService = {
    * Get users with expiring credentials
    */
   async getUsersWithExpiringCredentials(days: number = 30) {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + days);
+    const futureDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     return prisma.user.findMany({
       where: {
@@ -148,8 +147,7 @@ export const policyService = {
    * Get policies due for review
    */
   async getPoliciesDueForReview(days: number = 30) {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + days);
+    const futureDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     return prisma.policy.findMany({
       where: {
@@ -280,8 +278,7 @@ export const pdService = {
    * Get PD items due for a user
    */
   async getPDItemsDue(userId: string, days: number = 30) {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + days);
+    const futureDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     return prisma.pdItem.findMany({
       where: {
