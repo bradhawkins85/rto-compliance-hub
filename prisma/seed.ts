@@ -517,11 +517,6 @@ async function main() {
 
     console.log(`✅ Created default admin user (email: ${adminUser.email}, password: NOT SET - use password reset)`);
   }
-      },
-    });
-  }
-
-  console.log('✅ Created default admin user (email: admin@rto-compliance-hub.local, password: NOT SET - use password reset)');
 
   // Create some default jobs
   console.log('⚙️ Creating default jobs...');

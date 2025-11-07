@@ -19,12 +19,6 @@ export const loginRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Use IP address and email (if available) for rate limiting
-  keyGenerator: (req: Request): string => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const email = req.body?.email || '';
-    return `${ip}-${email}`;
-  },
   handler: (req: Request, res: Response): void => {
     res.status(429).json({
       type: 'https://tools.ietf.org/html/rfc6585#section-4',
@@ -50,11 +44,6 @@ export const passwordResetRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req: Request): string => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const email = req.body?.email || '';
-    return `${ip}-${email}`;
-  },
   handler: (req: Request, res: Response): void => {
     res.status(429).json({
       type: 'https://tools.ietf.org/html/rfc6585#section-4',
