@@ -3,6 +3,9 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import cors from 'cors';
 import authRoutes from './routes/auth';
+import usersRoutes from './routes/users';
+import policiesRoutes from './routes/policies';
+import standardsRoutes from './routes/standards';
 import { apiRateLimiter } from './middleware/rateLimit';
 
 // Load environment variables
@@ -58,6 +61,9 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // API routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', usersRoutes);
+app.use('/api/v1/policies', policiesRoutes);
+app.use('/api/v1/standards', standardsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
