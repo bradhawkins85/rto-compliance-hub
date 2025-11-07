@@ -483,29 +483,40 @@ async function main() {
   console.log('✅ Assigned permissions to roles');
 
   // Create a default system admin user
-  // NOTE: In production, either:
-  // 1. Require admin password via environment variable: process.env.ADMIN_PASSWORD
-  // 2. Generate a random password and output it securely
-  // 3. Use OAuth/SSO and don't set a password
-  console.log('👤 Creating default admin user...');
-  console.log('⚠️  WARNING: Default admin user created without password.');
-  console.log('⚠️  Password must be set via password reset flow before use.');
-  
-  const adminUser = await prisma.user.create({
-    data: {
-      email: 'admin@rto-compliance-hub.local',
-      name: 'System Administrator',
-      password: null, // Password must be set via password reset
-      department: 'Admin',
-      status: 'Active',
-    },
-  });
-
-  if (systemAdminRole) {
-    await prisma.userRole.create({
+  // In production, admin user should not be created via seed
+  // Instead, use proper user provisioning flow
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_DEFAULT_ADMIN) {
+    console.log('⚠️  Skipping default admin user creation in production environment.');
+    console.log('⚠️  Set ALLOW_DEFAULT_ADMIN=true if you need to create default admin.');
+  } else {
+    console.log('👤 Creating default admin user...');
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('⚠️  WARNING: Default admin user created without password.');
+      console.log('⚠️  Password must be set via password reset flow before use.');
+    }
+    
+    const adminUser = await prisma.user.create({
       data: {
-        userId: adminUser.id,
-        roleId: systemAdminRole.id,
+        email: process.env.ADMIN_EMAIL || 'admin@rto-compliance-hub.local',
+        name: 'System Administrator',
+        password: null, // Password must be set via password reset
+        department: 'Admin',
+        status: 'Active',
+      },
+    });
+
+    if (systemAdminRole) {
+      await prisma.userRole.create({
+        data: {
+          userId: adminUser.id,
+          roleId: systemAdminRole.id,
+        },
+      });
+    }
+
+    console.log(`✅ Created default admin user (email: ${adminUser.email}, password: NOT SET - use password reset)`);
+  }
       },
     });
   }

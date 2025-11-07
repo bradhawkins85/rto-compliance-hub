@@ -19,7 +19,10 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String
-  password  String?  // nullable for OAuth users
+  // Password: bcrypt hashed string (cost 10+) or null for OAuth/SSO users
+  // Minimum 8 characters required when set
+  // null indicates password must be set via password reset flow
+  password  String?
   department String  // Training, Admin, Management, Support
   status    String   @default("Active") // Active, Inactive
   createdAt DateTime @default(now())

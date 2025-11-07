@@ -6,6 +6,7 @@
  */
 
 import { prisma } from './prisma';
+import { addDaysToNow } from './dateUtils';
 import type { User, Policy, Standard } from '@prisma/client';
 
 /**
@@ -77,7 +78,7 @@ export const userService = {
    * Get users with expiring credentials
    */
   async getUsersWithExpiringCredentials(days: number = 30) {
-    const futureDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const futureDate = addDaysToNow(days);
 
     return prisma.user.findMany({
       where: {
@@ -147,7 +148,7 @@ export const policyService = {
    * Get policies due for review
    */
   async getPoliciesDueForReview(days: number = 30) {
-    const futureDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const futureDate = addDaysToNow(days);
 
     return prisma.policy.findMany({
       where: {
@@ -278,7 +279,7 @@ export const pdService = {
    * Get PD items due for a user
    */
   async getPDItemsDue(userId: string, days: number = 30) {
-    const futureDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const futureDate = addDaysToNow(days);
 
     return prisma.pdItem.findMany({
       where: {
@@ -319,6 +320,8 @@ export const complianceService = {
    * Get compliance overview statistics
    */
   async getComplianceOverview() {
+    const thirtyDaysFromNow = addDaysToNow(30);
+    
     const [
       totalStandards,
       mappedStandards,
@@ -343,7 +346,7 @@ export const complianceService = {
         where: {
           deletedAt: null,
           reviewDate: {
-            lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            lte: thirtyDaysFromNow,
           },
         },
       }),
@@ -352,7 +355,7 @@ export const complianceService = {
           credentials: {
             some: {
               expiresAt: {
-                lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                lte: thirtyDaysFromNow,
                 gte: new Date(),
               },
               status: 'Active',
