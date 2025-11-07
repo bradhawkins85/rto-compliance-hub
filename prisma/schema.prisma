@@ -37,6 +37,7 @@ model User {
   complaints      Complaint[]
   auditLogs       AuditLog[]
   notifications   Notification[]
+  emailPreferences EmailPreference?
 
   @@index([email])
   @@index([department])
@@ -520,4 +521,80 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================================================
+// EMAIL NOTIFICATION SYSTEM
+// ============================================================================
+
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique // policy_review_reminder, credential_expiry, pd_reminder, etc.
+  subject     String
+  htmlBody    String   @db.Text
+  textBody    String   @db.Text
+  description String?
+  variables   Json?    // JSON array of available template variables
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  emailLogs EmailLog[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id           String    @id @default(uuid())
+  templateId   String?
+  recipientEmail String
+  recipientName  String?
+  subject      String
+  htmlBody     String?   @db.Text
+  textBody     String?   @db.Text
+  status       String    @default("pending") // pending, sent, failed, bounced
+  provider     String?   // sendgrid, ses, smtp
+  providerId   String?   // external provider message ID
+  retryCount   Int       @default(0)
+  lastRetryAt  DateTime?
+  sentAt       DateTime?
+  failedAt     DateTime?
+  errorMessage String?   @db.Text
+  metadata     Json?     // Additional tracking data
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  template EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([recipientEmail])
+  @@index([status])
+  @@index([createdAt])
+  @@index([templateId])
+  @@map("email_logs")
+}
+
+model EmailPreference {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  unsubscribeAll      Boolean  @default(false)
+  policyReminders     Boolean  @default(true)
+  credentialAlerts    Boolean  @default(true)
+  pdReminders         Boolean  @default(true)
+  complaintNotifications Boolean @default(true)
+  digestEmails        Boolean  @default(true)
+  marketingEmails     Boolean  @default(false)
+  unsubscribeToken    String   @unique @default(uuid())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([unsubscribeToken])
+  @@map("email_preferences")
 }
