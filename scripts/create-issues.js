@@ -10,7 +10,7 @@
  *   GITHUB_TOKEN=your_token node scripts/create-issues.js
  * 
  * Or with gh CLI:
- *   gh auth token | GITHUB_TOKEN=$(cat) node scripts/create-issues.js
+ *   GITHUB_TOKEN=$(gh auth token) node scripts/create-issues.js
  */
 
 import { Octokit } from 'octokit';
@@ -21,9 +21,9 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Configuration
-const OWNER = 'bradhawkins85';
-const REPO = 'rto-compliance-hub';
+// Configuration from environment or defaults
+const OWNER = process.env.GITHUB_OWNER || 'bradhawkins85';
+const REPO = process.env.GITHUB_REPO || 'rto-compliance-hub';
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
 // GitHub token from environment
@@ -31,7 +31,8 @@ const token = process.env.GITHUB_TOKEN;
 if (!token) {
   console.error('Error: GITHUB_TOKEN environment variable is required');
   console.error('Usage: GITHUB_TOKEN=your_token node scripts/create-issues.js');
-  console.error('Or: gh auth token | GITHUB_TOKEN=$(cat) node scripts/create-issues.js');
+  console.error('Or: GITHUB_TOKEN=$(gh auth token) node scripts/create-issues.js');
+  console.error('\nOptional: Set GITHUB_OWNER and GITHUB_REPO to use with different repositories');
   process.exit(1);
 }
 
@@ -86,6 +87,11 @@ function parseIssuesFromMarkdown(content) {
       
       // Extract body (everything after the first section header up to next issue or end)
       const bodyStartIndex = section.indexOf('### Description');
+      if (bodyStartIndex === -1) {
+        console.warn(`Warning: Could not find '### Description' in issue ${number}`);
+        continue;
+      }
+      
       const bodyEndIndex = section.indexOf('---\n\n## Issue #', bodyStartIndex);
       let body = bodyEndIndex > 0 
         ? section.substring(bodyStartIndex, bodyEndIndex)
