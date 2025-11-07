@@ -21,14 +21,15 @@ const prisma = new PrismaClient();
 
 /**
  * Calculate PD item status based on due date and completion
+ * Note: Verified status is manually set and should not be recalculated
  */
 function calculatePDStatus(pdItem: { dueAt: Date | null; completedAt: Date | null; status: string }): string {
-  // If manually set to Verified or Completed, keep that status
-  if (pdItem.status === 'Verified' || (pdItem.status === 'Completed' && pdItem.completedAt)) {
-    return pdItem.status;
+  // Preserve Verified status (manually set by manager)
+  if (pdItem.status === 'Verified') {
+    return 'Verified';
   }
 
-  // If completed but not verified yet
+  // If completed, return Completed (will be upgraded to Verified manually)
   if (pdItem.completedAt) {
     return 'Completed';
   }

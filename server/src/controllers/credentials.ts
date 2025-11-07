@@ -19,9 +19,10 @@ const prisma = new PrismaClient();
 
 /**
  * Calculate credential status based on expiry date
+ * Note: Revoked status is manually set and should not be recalculated
  */
 function calculateCredentialStatus(credential: { expiresAt: Date | null; status: string }): string {
-  // If manually set to Revoked, keep that status
+  // Preserve Revoked status (manually set)
   if (credential.status === 'Revoked') {
     return 'Revoked';
   }

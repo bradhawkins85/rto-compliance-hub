@@ -530,7 +530,7 @@ export async function linkSOPs(req: Request, res: Response): Promise<void> {
     if (req.user) {
       await createAuditLog(
         req.user.userId,
-        'link_sops',
+        'linkSOPs',
         'TrainingProduct',
         id,
         { sopIds },
