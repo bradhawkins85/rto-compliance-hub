@@ -13,10 +13,20 @@ Visit `http://localhost:5173` to see the application.
 
 ## 📚 Documentation
 
+### Overview & Status
 - **[INVENTORY_INDEX.md](./INVENTORY_INDEX.md)** - Start here for documentation navigation
 - **[FEATURE_SUMMARY.md](./FEATURE_SUMMARY.md)** - Quick reference of implemented features
 - **[IMPLEMENTATION_INVENTORY.md](./IMPLEMENTATION_INVENTORY.md)** - Comprehensive technical documentation
+
+### Planning & Requirements
 - **[PRD.md](./PRD.md)** - Product requirements and design specifications
+- **[GAP_ANALYSIS.md](./GAP_ANALYSIS.md)** - Detailed gap analysis of missing functions (32KB)
+- **[MISSING_FUNCTIONS_SUMMARY.md](./MISSING_FUNCTIONS_SUMMARY.md)** - Quick reference for sub-task creation (25 tasks)
+
+### Issue Creation & Tracking
+- **[ISSUES_TO_CREATE.md](./ISSUES_TO_CREATE.md)** - Complete definitions for 25 GitHub issues
+- **[HOW_TO_CREATE_ISSUES.md](./HOW_TO_CREATE_ISSUES.md)** - Guide for creating issues (automated & manual methods)
+- **[scripts/README.md](./scripts/README.md)** - Automation script documentation
 
 ## 🎯 Current Status
 

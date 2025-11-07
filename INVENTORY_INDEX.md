@@ -7,7 +7,9 @@ Quick navigation to implementation documentation:
 | Document | Purpose | Lines | When to Use |
 |----------|---------|-------|-------------|
 | [FEATURE_SUMMARY.md](./FEATURE_SUMMARY.md) | Quick reference guide | ~140 | Quick status check, high-level overview |
-| [IMPLEMENTATION_INVENTORY.md](./IMPLEMENTATION_INVENTORY.md) | Comprehensive inventory | ~680 | Detailed analysis, gap analysis, planning |
+| [IMPLEMENTATION_INVENTORY.md](./IMPLEMENTATION_INVENTORY.md) | Comprehensive inventory | ~680 | Detailed analysis, technical specifications |
+| [GAP_ANALYSIS.md](./GAP_ANALYSIS.md) | Missing functions analysis | ~1,090 | Gap analysis, missing features, effort estimates |
+| [MISSING_FUNCTIONS_SUMMARY.md](./MISSING_FUNCTIONS_SUMMARY.md) | Sub-task reference | ~550 | Creating GitHub issues, sprint planning |
 | [PRD.md](./PRD.md) | Product requirements (prototype) | ~200 | Frontend design requirements |
 | [.github/copilot-instructions.md](./.github/copilot-instructions.md) | Full platform specification | ~900+ | Backend/API requirements, full scope |
 
@@ -74,6 +76,12 @@ Quick navigation to implementation documentation:
 
 ### For Detailed Analysis
 → Read [IMPLEMENTATION_INVENTORY.md](./IMPLEMENTATION_INVENTORY.md)
+
+### For Gap Analysis & Missing Features
+→ Read [GAP_ANALYSIS.md](./GAP_ANALYSIS.md)
+
+### For Sub-Task Creation (25 Tasks)
+→ Read [MISSING_FUNCTIONS_SUMMARY.md](./MISSING_FUNCTIONS_SUMMARY.md)
 
 ### For Design Requirements
 → Read [PRD.md](./PRD.md)
