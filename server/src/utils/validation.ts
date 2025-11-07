@@ -111,6 +111,141 @@ export const listStandardsQuerySchema = paginationSchema.extend({
 });
 
 /**
+ * Training Products validation schemas
+ */
+
+export const createTrainingProductSchema = z.object({
+  code: z.string().min(1, 'Code is required').max(50),
+  name: z.string().min(1, 'Name is required').max(500),
+  status: z.enum(['Active', 'Inactive']).optional(),
+  assessmentStrategyUrl: z.string().url().optional(),
+  validationReportUrl: z.string().url().optional(),
+  isAccredited: z.boolean().optional(),
+});
+
+export const updateTrainingProductSchema = z.object({
+  code: z.string().min(1).max(50).optional(),
+  name: z.string().min(1).max(500).optional(),
+  status: z.enum(['Active', 'Inactive']).optional(),
+  assessmentStrategyUrl: z.string().url().optional(),
+  validationReportUrl: z.string().url().optional(),
+  isAccredited: z.boolean().optional(),
+});
+
+export const linkSOPsSchema = z.object({
+  sopIds: z.array(uuidSchema).min(1, 'At least one SOP ID is required'),
+});
+
+export const listTrainingProductsQuerySchema = paginationSchema.extend({
+  status: z.enum(['Active', 'Inactive']).optional(),
+  isAccredited: z.coerce.boolean().optional(),
+  ownerId: uuidSchema.optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
+ * SOP validation schemas
+ */
+
+export const createSOPSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(500),
+  version: z.string().min(1, 'Version is required').max(50),
+  fileUrl: z.string().url().optional(),
+  policyId: uuidSchema.optional(),
+  description: z.string().optional(),
+});
+
+export const updateSOPSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  version: z.string().min(1).max(50).optional(),
+  fileUrl: z.string().url().optional(),
+  policyId: uuidSchema.optional(),
+  description: z.string().optional(),
+});
+
+export const listSOPsQuerySchema = paginationSchema.extend({
+  policyId: uuidSchema.optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
+ * PD Items validation schemas
+ */
+
+export const createPDItemSchema = z.object({
+  userId: uuidSchema,
+  title: z.string().min(1, 'Title is required').max(500),
+  description: z.string().optional(),
+  hours: z.coerce.number().min(0).optional(),
+  dueAt: z.string().datetime().optional(),
+  category: z.enum(['Vocational', 'Industry', 'Pedagogical']).optional(),
+});
+
+export const updatePDItemSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().optional(),
+  hours: z.coerce.number().min(0).optional(),
+  dueAt: z.string().datetime().optional(),
+  category: z.enum(['Vocational', 'Industry', 'Pedagogical']).optional(),
+  status: z.enum(['Planned', 'Due', 'Overdue', 'Completed', 'Verified']).optional(),
+});
+
+export const completePDItemSchema = z.object({
+  evidenceUrl: z.string().url('Evidence URL must be a valid URL'),
+  completedAt: z.string().datetime().optional(),
+});
+
+export const verifyPDItemSchema = z.object({
+  notes: z.string().optional(),
+});
+
+export const listPDItemsQuerySchema = paginationSchema.extend({
+  userId: uuidSchema.optional(),
+  status: z.enum(['Planned', 'Due', 'Overdue', 'Completed', 'Verified']).optional(),
+  dueBefore: z.string().datetime().optional(),
+  category: z.enum(['Vocational', 'Industry', 'Pedagogical']).optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
+ * Credentials validation schemas
+ */
+
+export const createCredentialSchema = z.object({
+  userId: uuidSchema,
+  name: z.string().min(1, 'Name is required').max(255),
+  type: z.enum(['Certificate', 'License', 'Qualification']),
+  issuedAt: z.string().datetime(),
+  expiresAt: z.string().datetime().optional(),
+  evidenceUrl: z.string().url().optional(),
+});
+
+export const updateCredentialSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  type: z.enum(['Certificate', 'License', 'Qualification']).optional(),
+  issuedAt: z.string().datetime().optional(),
+  expiresAt: z.string().datetime().optional(),
+  evidenceUrl: z.string().url().optional(),
+  status: z.enum(['Active', 'Expired', 'Revoked']).optional(),
+});
+
+export const listCredentialsQuerySchema = paginationSchema.extend({
+  userId: uuidSchema.optional(),
+  status: z.enum(['Active', 'Expired', 'Revoked']).optional(),
+  expiresBefore: z.string().datetime().optional(),
+  type: z.enum(['Certificate', 'License', 'Qualification']).optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
  * Helper function to validate request data
  */
 export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: z.ZodError } {
