@@ -3,17 +3,80 @@ import { ComplianceMeter } from '@/components/ComplianceMeter'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Warning, CheckCircle, FileText } from '@phosphor-icons/react'
-import { mockDashboardMetrics, mockPolicies } from '@/lib/mockData'
-import { getStatusFromDate, formatDate, getDaysUntil } from '@/lib/helpers'
+import { formatDate, getDaysUntil } from '@/lib/helpers'
+import { useDashboardMetrics, usePolicies } from '@/hooks/api'
+import { StatGridSkeleton, CardSkeleton } from '@/components/ui/skeleton'
+import { ErrorDisplay } from '@/components/ui/error'
 
 export function OverviewView() {
-  const metrics = mockDashboardMetrics
-  const policiesDueReview = mockPolicies.filter(p => {
+  const { data: metrics, isLoading: metricsLoading, error: metricsError, refetch: refetchMetrics } = useDashboardMetrics()
+  const { data: policiesData, isLoading: policiesLoading, error: policiesError, refetch: refetchPolicies } = usePolicies({ perPage: 100 })
+
+  // Calculate policies due for review
+  const policiesDueReview = (policiesData?.data || []).filter(p => {
     const days = getDaysUntil(p.reviewDate)
     return days <= 30 && days >= 0
   })
 
-  const coveragePercentage = Math.round((metrics.mappedStandards / metrics.totalStandards) * 100)
+  const coveragePercentage = metrics ? Math.round((metrics.mappedStandards / metrics.totalStandards) * 100) : 0
+
+  // Show loading state
+  if (metricsLoading || policiesLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Compliance Overview</h2>
+          <p className="text-muted-foreground mt-1">Current compliance status and key metrics</p>
+        </div>
+        <StatGridSkeleton count={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (metricsError || policiesError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Compliance Overview</h2>
+          <p className="text-muted-foreground mt-1">Current compliance status and key metrics</p>
+        </div>
+        {metricsError && (
+          <ErrorDisplay 
+            error={metricsError} 
+            title="Failed to load dashboard metrics"
+            onRetry={refetchMetrics}
+          />
+        )}
+        {policiesError && (
+          <ErrorDisplay 
+            error={policiesError} 
+            title="Failed to load policies"
+            onRetry={refetchPolicies}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // No data
+  if (!metrics) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Compliance Overview</h2>
+          <p className="text-muted-foreground mt-1">Current compliance status and key metrics</p>
+        </div>
+        <Alert>
+          <AlertDescription>No dashboard data available</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -99,6 +162,7 @@ export function OverviewView() {
               <div className="space-y-3">
                 {policiesDueReview.map((policy) => {
                   const days = getDaysUntil(policy.reviewDate)
+                  const versionNumber = policy.version?.versionNumber || '1.0'
                   return (
                     <div key={policy.id} className="flex items-start justify-between p-3 rounded-lg bg-muted/50">
                       <div className="flex-1 min-w-0">
@@ -108,7 +172,7 @@ export function OverviewView() {
                         </p>
                       </div>
                       <span className="text-xs px-2 py-1 rounded bg-accent text-accent-foreground font-medium ml-2 whitespace-nowrap">
-                        v{policy.version}
+                        v{versionNumber}
                       </span>
                     </div>
                   )
