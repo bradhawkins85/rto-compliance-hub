@@ -10,6 +10,7 @@ import trainingProductsRoutes from './routes/trainingProducts';
 import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
+import webhooksRoutes from './routes/webhooks';
 import accelerateSyncRoutes from './routes/accelerateSync';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
@@ -74,6 +75,7 @@ app.use('/api/v1/training-products', trainingProductsRoutes);
 app.use('/api/v1/sops', sopsRoutes);
 app.use('/api/v1/pd', pdRoutes);
 app.use('/api/v1/credentials', credentialsRoutes);
+app.use('/api/v1/webhooks', webhooksRoutes);
 app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
 
 // 404 handler
