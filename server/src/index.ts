@@ -10,6 +10,7 @@ import trainingProductsRoutes from './routes/trainingProducts';
 import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
+import webhooksRoutes from './routes/webhooks';
 import { apiRateLimiter } from './middleware/rateLimit';
 
 // Load environment variables
@@ -72,6 +73,7 @@ app.use('/api/v1/training-products', trainingProductsRoutes);
 app.use('/api/v1/sops', sopsRoutes);
 app.use('/api/v1/pd', pdRoutes);
 app.use('/api/v1/credentials', credentialsRoutes);
+app.use('/api/v1/webhooks', webhooksRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

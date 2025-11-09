@@ -521,3 +521,24 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model WebhookSubmission {
+  id            String   @id @default(uuid())
+  source        String   // jotform
+  formId        String   // JotForm form ID
+  submissionId  String   // External submission ID for duplicate detection
+  formType      String?  // learner, employer, industry, sop
+  payload       Json     // Full webhook payload
+  status        String   @default("Pending") // Pending, Processing, Completed, Failed
+  processingError String? @db.Text
+  retryCount    Int      @default(0)
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([source, submissionId])
+  @@index([formId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("webhook_submissions")
+}
