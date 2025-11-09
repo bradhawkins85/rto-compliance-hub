@@ -11,7 +11,9 @@ import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
 import webhooksRoutes from './routes/webhooks';
+import accelerateSyncRoutes from './routes/accelerateSync';
 import { apiRateLimiter } from './middleware/rateLimit';
+import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
 // Load environment variables
 const PORT = process.env.APP_PORT || 3000;
@@ -74,6 +76,7 @@ app.use('/api/v1/sops', sopsRoutes);
 app.use('/api/v1/pd', pdRoutes);
 app.use('/api/v1/credentials', credentialsRoutes);
 app.use('/api/v1/webhooks', webhooksRoutes);
+app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -104,6 +107,22 @@ app.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  
+  // Initialize scheduled jobs
+  initializeScheduler();
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  stopAllScheduledJobs();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  stopAllScheduledJobs();
+  process.exit(0);
 });
 
 export default app;
