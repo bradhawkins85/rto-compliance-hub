@@ -42,7 +42,8 @@ pids
 *.sqlite3
 
 # Prisma
-migrations/
+# Note: Prisma migrations should be tracked in version control
+# migrations/
 .prisma/
 
 /src/generated/prisma
