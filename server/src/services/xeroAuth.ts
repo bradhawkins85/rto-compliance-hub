@@ -25,13 +25,13 @@ export function createXeroClient(): XeroClient {
 /**
  * Get authorization URL for OAuth2 flow
  */
-export function getAuthorizationUrl(): string {
+export async function getAuthorizationUrl(): Promise<string> {
   if (!XERO_CLIENT_ID || !XERO_CLIENT_SECRET) {
     throw new Error('Xero OAuth credentials not configured. Please set XERO_CLIENT_ID and XERO_CLIENT_SECRET');
   }
 
   const xero = createXeroClient();
-  return xero.buildConsentUrl();
+  return await xero.buildConsentUrl();
 }
 
 /**
@@ -58,12 +58,18 @@ export async function storeTokens(
   tenantName?: string
 ): Promise<string> {
   try {
+    // Ensure required tokens are present
+    if (!tokenSet.access_token || !tokenSet.refresh_token) {
+      throw new Error('Missing required tokens in token set');
+    }
+
     // Encrypt tokens before storing
     const encryptedAccessToken = encrypt(tokenSet.access_token);
-    const encryptedRefreshToken = encrypt(tokenSet.refresh_token!);
+    const encryptedRefreshToken = encrypt(tokenSet.refresh_token);
 
-    // Calculate expiration time
-    const expiresAt = new Date(Date.now() + (tokenSet.expires_in! * 1000));
+    // Calculate expiration time (default to 30 minutes if not provided)
+    const expiresIn = tokenSet.expires_in || 1800;
+    const expiresAt = new Date(Date.now() + (expiresIn * 1000));
 
     // Upsert connection
     const connection = await prisma.xeroConnection.upsert({
@@ -116,7 +122,7 @@ export async function getActiveConnection() {
 /**
  * Get decrypted tokens for a connection
  */
-export function getDecryptedTokens(connection: any): TokenSet {
+export function getDecryptedTokens(connection: any): any {
   return {
     access_token: decrypt(connection.accessToken),
     refresh_token: decrypt(connection.refreshToken),
@@ -140,7 +146,7 @@ export function needsRefresh(connection: any): boolean {
 /**
  * Refresh access token using refresh token
  */
-export async function refreshAccessToken(connectionId: string): Promise<TokenSet> {
+export async function refreshAccessToken(connectionId: string): Promise<any> {
   const connection = await prisma.xeroConnection.findUnique({
     where: { id: connectionId },
   });
@@ -154,15 +160,21 @@ export async function refreshAccessToken(connectionId: string): Promise<TokenSet
 
   try {
     // Set current token set
-    xero.setTokenSet(currentTokens);
+    await xero.setTokenSet(currentTokens);
 
     // Refresh tokens
     const newTokenSet = await xero.refreshToken();
 
+    // Ensure required tokens are present
+    if (!newTokenSet.access_token || !newTokenSet.refresh_token) {
+      throw new Error('Missing required tokens after refresh');
+    }
+
     // Store new tokens
     const encryptedAccessToken = encrypt(newTokenSet.access_token);
-    const encryptedRefreshToken = encrypt(newTokenSet.refresh_token!);
-    const expiresAt = new Date(Date.now() + (newTokenSet.expires_in! * 1000));
+    const encryptedRefreshToken = encrypt(newTokenSet.refresh_token);
+    const expiresIn = newTokenSet.expires_in || 1800;
+    const expiresAt = new Date(Date.now() + (expiresIn * 1000));
 
     await prisma.xeroConnection.update({
       where: { id: connectionId },
@@ -193,7 +205,7 @@ export async function getAuthenticatedXeroClient(): Promise<{ xero: XeroClient; 
   }
 
   // Refresh token if needed
-  let tokenSet: TokenSet;
+  let tokenSet: any;
   if (needsRefresh(connection)) {
     console.log('Refreshing Xero access token...');
     tokenSet = await refreshAccessToken(connection.id);

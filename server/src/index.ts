@@ -10,7 +10,9 @@ import trainingProductsRoutes from './routes/trainingProducts';
 import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
+import xeroSyncRoutes from './routes/xeroSync';
 import { apiRateLimiter } from './middleware/rateLimit';
+import { initializeScheduler } from './services/scheduler';
 
 // Load environment variables
 const PORT = process.env.APP_PORT || 3000;
@@ -72,6 +74,7 @@ app.use('/api/v1/training-products', trainingProductsRoutes);
 app.use('/api/v1/sops', sopsRoutes);
 app.use('/api/v1/pd', pdRoutes);
 app.use('/api/v1/credentials', credentialsRoutes);
+app.use('/api/v1/sync/xero', xeroSyncRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -102,6 +105,9 @@ app.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  
+  // Initialize scheduled jobs
+  initializeScheduler();
 });
 
 export default app;
