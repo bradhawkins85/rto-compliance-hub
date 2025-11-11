@@ -16,6 +16,7 @@ import {
   addCredentialSchema,
   formatValidationErrors,
 } from '../utils/validation';
+import { triggerOnboardingForNewUser } from '../services/onboarding';
 
 const prisma = new PrismaClient();
 
@@ -355,6 +356,12 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       ...rest,
       roles: userRoles.map(ur => ur.role.name),
     };
+
+    // Trigger onboarding workflow for new user (async, don't wait)
+    const userRoleNames = userRoles.map(ur => ur.role.name);
+    triggerOnboardingForNewUser(user.id, department, userRoleNames).catch((error) => {
+      console.error('Error triggering onboarding:', error);
+    });
 
     res.status(201).json(response);
   } catch (error) {
