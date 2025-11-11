@@ -15,6 +15,7 @@ import webhooksRoutes from './routes/webhooks';
 import accelerateSyncRoutes from './routes/accelerateSync';
 import googleDriveRoutes from './routes/googleDrive';
 import feedbackRoutes from './routes/feedback';
+import emailRoutes from './routes/email';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
@@ -83,6 +84,7 @@ app.use('/api/v1/webhooks', webhooksRoutes);
 app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
 app.use('/api/v1/files/google-drive', googleDriveRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
+app.use('/api/v1/email', emailRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
