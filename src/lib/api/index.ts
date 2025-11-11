@@ -8,6 +8,7 @@ export { policiesApi } from './policies';
 export { trainingProductsApi } from './trainingProducts';
 export { usersApi } from './users';
 export { dashboardApi } from './dashboard';
+export { feedbackApi } from './feedback';
 
 // Export types
 export type * from './types';
