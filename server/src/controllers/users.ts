@@ -130,7 +130,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
         };
         
         // Optionally include onboarding status
-        if (includeOnboarding === 'true' || includeOnboarding === true) {
+        if (includeOnboarding === 'true') {
           const { getOnboardingStatus } = await import('../services/onboarding');
           const onboardingStatus = await getOnboardingStatus(user.id);
           result.onboarding = onboardingStatus;
