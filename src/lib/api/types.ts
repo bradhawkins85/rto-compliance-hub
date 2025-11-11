@@ -357,3 +357,81 @@ export interface ListAssetsParams extends ListQueryParams {
   location?: string;
   serviceDueBefore?: string;
 }
+
+// Complaints types
+export interface Complaint {
+  id: string;
+  source: 'Student' | 'Staff' | 'Employer' | 'External';
+  description: string;
+  status: 'New' | 'InReview' | 'Actioned' | 'Closed';
+  studentId?: string;
+  trainerId?: string;
+  trainingProductId?: string;
+  courseId?: string;
+  rootCause?: string;
+  correctiveAction?: string;
+  submittedAt: string;
+  closedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  slaBreach?: boolean;
+  trainer?: {
+    id: string;
+    name: string;
+    email: string;
+    department?: string;
+  };
+  trainingProduct?: {
+    id: string;
+    code: string;
+    name: string;
+    status?: string;
+  };
+  timeline?: ComplaintTimeline[];
+}
+
+export interface ComplaintTimeline {
+  id: string;
+  complaintId: string;
+  status: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface CreateComplaintData {
+  source: 'Student' | 'Staff' | 'Employer' | 'External';
+  description: string;
+  studentId?: string;
+  trainerId?: string;
+  trainingProductId?: string;
+  courseId?: string;
+}
+
+export interface UpdateComplaintData {
+  description?: string;
+  status?: 'New' | 'InReview' | 'Actioned' | 'Closed';
+  trainerId?: string | null;
+  trainingProductId?: string | null;
+  courseId?: string | null;
+  rootCause?: string;
+  correctiveAction?: string;
+  notes?: string;
+}
+
+export interface CloseComplaintData {
+  rootCause: string;
+  correctiveAction: string;
+  notes?: string;
+}
+
+export interface ListComplaintsParams extends ListQueryParams {
+  status?: 'New' | 'InReview' | 'Actioned' | 'Closed';
+  source?: 'Student' | 'Staff' | 'Employer' | 'External';
+  trainerId?: string;
+  trainingProductId?: string;
+  studentId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  slaBreach?: 'true' | 'false';
+}
