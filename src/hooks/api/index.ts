@@ -6,3 +6,4 @@ export * from './useUsers';
 export * from './useDashboard';
 export * from './useFeedback';
 export * from './useAssets';
+export * from './useComplaints';

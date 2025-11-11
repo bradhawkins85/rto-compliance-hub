@@ -332,6 +332,56 @@ export const listAssetsQuerySchema = paginationSchema.extend({
 });
 
 /**
+ * Complaints & Appeals validation schemas
+ */
+
+export const createComplaintSchema = z.object({
+  source: z.enum(['Student', 'Staff', 'Employer', 'External'], {
+    required_error: 'Source is required',
+  }),
+  description: z.string().min(1, 'Description is required'),
+  studentId: z.string().optional(),
+  trainerId: uuidSchema.optional(),
+  trainingProductId: uuidSchema.optional(),
+  courseId: z.string().optional(),
+});
+
+export const updateComplaintSchema = z.object({
+  description: z.string().min(1).optional(),
+  status: z.enum(['New', 'InReview', 'Actioned', 'Closed']).optional(),
+  trainerId: uuidSchema.optional().nullable(),
+  trainingProductId: uuidSchema.optional().nullable(),
+  courseId: z.string().optional().nullable(),
+  rootCause: z.string().optional(),
+  correctiveAction: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const closeComplaintSchema = z.object({
+  rootCause: z.string().min(1, 'Root cause is required for closure'),
+  correctiveAction: z.string().min(1, 'Corrective action is required for closure'),
+  notes: z.string().optional(),
+});
+
+export const addComplaintNoteSchema = z.object({
+  notes: z.string().min(1, 'Note content is required'),
+});
+
+export const listComplaintsQuerySchema = paginationSchema.extend({
+  status: z.enum(['New', 'InReview', 'Actioned', 'Closed']).optional(),
+  source: z.enum(['Student', 'Staff', 'Employer', 'External']).optional(),
+  trainerId: uuidSchema.optional(),
+  trainingProductId: uuidSchema.optional(),
+  studentId: z.string().optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  slaBreach: z.string().optional(), // 'true' or 'false'
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
  * Helper function to validate request data
  */
 export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: z.ZodError } {
