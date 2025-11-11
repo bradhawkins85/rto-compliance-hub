@@ -1,7 +1,7 @@
-import { House, FileText, GraduationCap, Users, ChartBar, ChatCircle } from '@phosphor-icons/react'
+import { House, FileText, GraduationCap, Users, ChartBar, ChatCircle, Package } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
-export type NavItem = 'overview' | 'standards' | 'policies' | 'training' | 'staff' | 'feedback'
+export type NavItem = 'overview' | 'standards' | 'policies' | 'training' | 'staff' | 'feedback' | 'resources'
 
 interface NavigationProps {
   activeView: NavItem
@@ -14,6 +14,7 @@ const navItems = [
   { id: 'policies' as const, label: 'Policies', icon: FileText },
   { id: 'training' as const, label: 'Training', icon: GraduationCap },
   { id: 'staff' as const, label: 'PD & Staff', icon: Users },
+  { id: 'resources' as const, label: 'Resources', icon: Package },
   { id: 'feedback' as const, label: 'Feedback', icon: ChatCircle }
 ]
 

@@ -16,6 +16,7 @@ import accelerateSyncRoutes from './routes/accelerateSync';
 import googleDriveRoutes from './routes/googleDrive';
 import feedbackRoutes from './routes/feedback';
 import emailRoutes from './routes/email';
+import assetsRoutes from './routes/assets';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
@@ -85,6 +86,7 @@ app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
 app.use('/api/v1/files/google-drive', googleDriveRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/email', emailRoutes);
+app.use('/api/v1/assets', assetsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

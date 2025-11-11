@@ -282,6 +282,56 @@ export const listFeedbackQuerySchema = paginationSchema.extend({
 });
 
 /**
+ * Asset & Resource Management validation schemas
+ */
+
+export const createAssetSchema = z.object({
+  type: z.string().min(1, 'Type is required').max(100),
+  name: z.string().min(1, 'Name is required').max(500),
+  serialNumber: z.string().max(255).optional(),
+  location: z.string().max(500).optional(),
+  status: z.enum(['Available', 'Assigned', 'Servicing', 'Retired']).optional(),
+  purchaseDate: z.string().datetime().optional(),
+  purchaseCost: z.coerce.number().min(0).optional(),
+});
+
+export const updateAssetSchema = z.object({
+  type: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(500).optional(),
+  serialNumber: z.string().max(255).optional(),
+  location: z.string().max(500).optional(),
+  status: z.enum(['Available', 'Assigned', 'Servicing', 'Retired']).optional(),
+  purchaseDate: z.string().datetime().optional(),
+  purchaseCost: z.coerce.number().min(0).optional(),
+  nextServiceAt: z.string().datetime().optional(),
+});
+
+export const transitionAssetStateSchema = z.object({
+  state: z.enum(['Available', 'Assigned', 'Servicing', 'Retired'], {
+    required_error: 'State is required',
+  }),
+  notes: z.string().optional(),
+});
+
+export const logAssetServiceSchema = z.object({
+  serviceDate: z.string().datetime(),
+  servicedBy: z.string().max(255).optional(),
+  notes: z.string().optional(),
+  cost: z.coerce.number().min(0).optional(),
+  documents: z.array(z.string().url()).optional(),
+});
+
+export const listAssetsQuerySchema = paginationSchema.extend({
+  type: z.string().optional(),
+  status: z.enum(['Available', 'Assigned', 'Servicing', 'Retired']).optional(),
+  location: z.string().optional(),
+  serviceDueBefore: z.string().datetime().optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
  * Helper function to validate request data
  */
 export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: z.ZodError } {

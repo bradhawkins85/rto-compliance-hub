@@ -6,6 +6,7 @@ import { PoliciesView } from '@/components/views/PoliciesView'
 import { TrainingView } from '@/components/views/TrainingView'
 import { StaffView } from '@/components/views/StaffView'
 import { FeedbackView } from '@/components/views/FeedbackView'
+import { ResourcesView } from '@/components/views/ResourcesView'
 import { Toaster } from '@/components/ui/sonner'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
         {activeView === 'policies' && <PoliciesView />}
         {activeView === 'training' && <TrainingView />}
         {activeView === 'staff' && <StaffView />}
+        {activeView === 'resources' && <ResourcesView />}
         {activeView === 'feedback' && <FeedbackView />}
       </main>
 
