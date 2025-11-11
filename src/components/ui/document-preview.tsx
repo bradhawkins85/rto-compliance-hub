@@ -31,7 +31,14 @@ export interface DocumentPreviewProps {
 
 const isImageType = (mimeType: string) => mimeType.startsWith('image/')
 const isPdfType = (mimeType: string) => mimeType === 'application/pdf'
-const isGoogleDoc = (url: string) => url.includes('docs.google.com') || url.includes('drive.google.com')
+const isGoogleDoc = (url: string) => {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname === 'docs.google.com' || urlObj.hostname === 'drive.google.com'
+  } catch {
+    return false
+  }
+}
 
 export function DocumentPreview({
   open,

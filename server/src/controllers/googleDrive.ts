@@ -249,6 +249,17 @@ export async function uploadMultipleFiles(req: Request, res: Response): Promise<
       return;
     }
 
+    // Validate that entityType and entityId are strings, not arrays
+    if (typeof entityType !== 'string' || typeof entityId !== 'string') {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'entityType and entityId must be strings',
+      });
+      return;
+    }
+
     if (!entityType || !entityId) {
       res.status(400).json({
         type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',

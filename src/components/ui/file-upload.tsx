@@ -68,7 +68,7 @@ export function FileUpload({
         if (acceptedType.startsWith('.')) {
           return fileExt === acceptedType
         }
-        return fileType === acceptedType || fileType.startsWith(acceptedType.replace('*', ''))
+        return fileType === acceptedType || (acceptedType.includes('*') && fileType.startsWith(acceptedType.split('*')[0]))
       })
 
       if (!isAccepted) {
