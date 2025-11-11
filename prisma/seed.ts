@@ -334,6 +334,11 @@ const defaultPermissions = [
   { resource: 'complaints', action: 'delete', name: 'complaints.delete', description: 'Delete complaints' },
   // Reports
   { resource: 'reports', action: 'read', name: 'reports.read', description: 'View reports and analytics' },
+  // Integrations
+  { resource: 'integrations', action: 'create', name: 'integrations.create', description: 'Trigger integrations and syncs' },
+  { resource: 'integrations', action: 'read', name: 'integrations.read', description: 'View integration status and data' },
+  { resource: 'integrations', action: 'update', name: 'integrations.update', description: 'Configure integrations' },
+  { resource: 'integrations', action: 'delete', name: 'integrations.delete', description: 'Remove integrations' },
 ];
 
 async function main() {
@@ -345,6 +350,10 @@ async function main() {
     await prisma.auditLog.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.job.deleteMany();
+    await prisma.accelerateEnrollment.deleteMany();
+    await prisma.accelerateStudent.deleteMany();
+    await prisma.accelerateMapping.deleteMany();
+    await prisma.accelerateSyncLog.deleteMany();
     await prisma.evidence.deleteMany();
     await prisma.complaintTimeline.deleteMany();
     await prisma.complaint.deleteMany();

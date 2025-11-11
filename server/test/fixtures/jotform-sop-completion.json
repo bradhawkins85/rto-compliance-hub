@@ -1,0 +1,52 @@
+{
+  "submissionID": "sop-444555666",
+  "formID": "241234567893",
+  "form_title": "SOP Training Completion Form",
+  "ip": "192.168.1.4",
+  "created_at": "2025-11-09 11:45:00",
+  "status": "ACTIVE",
+  "answers": {
+    "1": {
+      "name": "formType",
+      "answer": "sop",
+      "text": "SOP Training",
+      "type": "control_radio"
+    },
+    "2": {
+      "name": "staffName",
+      "answer": "Sarah Williams",
+      "text": "Staff Member Name",
+      "type": "control_textbox"
+    },
+    "3": {
+      "name": "staffEmail",
+      "answer": "sarah.williams@company.com",
+      "text": "Email Address",
+      "type": "control_email"
+    },
+    "4": {
+      "name": "sopTitle",
+      "answer": "Assessment and Validation Procedures",
+      "text": "SOP Title",
+      "type": "control_textbox"
+    },
+    "5": {
+      "name": "completionDate",
+      "answer": "2025-11-09",
+      "text": "Completion Date",
+      "type": "control_datetime"
+    },
+    "6": {
+      "name": "understandingConfirmation",
+      "answer": "Yes",
+      "text": "I confirm I understand this SOP",
+      "type": "control_checkbox"
+    },
+    "7": {
+      "name": "signature",
+      "answer": "https://www.jotform.com/uploads/signature_12345.png",
+      "text": "Digital Signature",
+      "type": "control_signature"
+    }
+  }
+}
