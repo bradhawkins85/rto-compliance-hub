@@ -19,6 +19,7 @@ import emailRoutes from './routes/email';
 import assetsRoutes from './routes/assets';
 import complaintsRoutes from './routes/complaints';
 import onboardingRoutes from './routes/onboarding';
+import reportsRoutes from './routes/reports';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
@@ -91,6 +92,7 @@ app.use('/api/v1/email', emailRoutes);
 app.use('/api/v1/assets', assetsRoutes);
 app.use('/api/v1/complaints', complaintsRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
+app.use('/api/v1/reports', reportsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
