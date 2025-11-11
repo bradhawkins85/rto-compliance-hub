@@ -246,6 +246,42 @@ export const listCredentialsQuerySchema = paginationSchema.extend({
 });
 
 /**
+ * Feedback validation schemas
+ */
+
+export const createFeedbackSchema = z.object({
+  type: z.enum(['learner', 'employer', 'industry']),
+  trainingProductId: uuidSchema.optional(),
+  trainerId: z.string().optional(),
+  courseId: z.string().optional(),
+  rating: z.coerce.number().min(0).max(5).optional(),
+  comments: z.string().optional(),
+  anonymous: z.coerce.boolean().optional(),
+});
+
+export const updateFeedbackSchema = z.object({
+  rating: z.coerce.number().min(0).max(5).optional(),
+  comments: z.string().optional(),
+  sentiment: z.coerce.number().min(-1).max(1).optional(),
+  themes: z.array(z.string()).optional(),
+});
+
+export const listFeedbackQuerySchema = paginationSchema.extend({
+  type: z.enum(['learner', 'employer', 'industry']).optional(),
+  trainingProductId: uuidSchema.optional(),
+  trainerId: z.string().optional(),
+  courseId: z.string().optional(),
+  anonymous: z.string().optional(), // Will be coerced to boolean
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  minRating: z.string().optional(), // Will be parsed as float
+  maxRating: z.string().optional(), // Will be parsed as float
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
  * Helper function to validate request data
  */
 export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: z.ZodError } {

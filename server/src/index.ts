@@ -14,6 +14,7 @@ import xeroSyncRoutes from './routes/xeroSync';
 import webhooksRoutes from './routes/webhooks';
 import accelerateSyncRoutes from './routes/accelerateSync';
 import googleDriveRoutes from './routes/googleDrive';
+import feedbackRoutes from './routes/feedback';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
@@ -81,6 +82,7 @@ app.use('/api/v1/sync/xero', xeroSyncRoutes);
 app.use('/api/v1/webhooks', webhooksRoutes);
 app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
 app.use('/api/v1/files/google-drive', googleDriveRoutes);
+app.use('/api/v1/feedback', feedbackRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
