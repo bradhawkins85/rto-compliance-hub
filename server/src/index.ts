@@ -11,8 +11,6 @@ import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
 import xeroSyncRoutes from './routes/xeroSync';
-import { apiRateLimiter } from './middleware/rateLimit';
-import { initializeScheduler } from './services/scheduler';
 import webhooksRoutes from './routes/webhooks';
 import accelerateSyncRoutes from './routes/accelerateSync';
 import { apiRateLimiter } from './middleware/rateLimit';

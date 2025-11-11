@@ -1,8 +1,13 @@
 import cron from 'node-cron';
 import { syncEmployees } from '../services/xeroSync';
 import { PrismaClient } from '@prisma/client';
+import { syncAll } from './accelerateSync';
+import { accelerateClient } from './accelerate';
 
 const prisma = new PrismaClient();
+
+// Store interval IDs for cleanup
+const scheduledJobs: Map<string, NodeJS.Timeout> = new Map();
 
 /**
  * Schedule daily sync at 2:00 AM
@@ -151,19 +156,7 @@ async function notifyAdminsOfSyncError(error: any): Promise<void> {
   } catch (notifyError) {
     console.error('Error notifying admins of sync error:', notifyError);
   }
-/**
- * Job Scheduler Service
- * Handles scheduled tasks like daily Accelerate sync
- */
-
-import { PrismaClient } from '@prisma/client';
-import { syncAll } from './accelerateSync';
-import { accelerateClient } from './accelerate';
-
-const prisma = new PrismaClient();
-
-// Store interval IDs for cleanup
-const scheduledJobs: Map<string, NodeJS.Timeout> = new Map();
+}
 
 /**
  * Schedule Accelerate sync to run daily at 3:00 AM
