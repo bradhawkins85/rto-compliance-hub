@@ -137,7 +137,7 @@ export async function disconnect(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * Upload file
+ * Upload file (base64 body)
  */
 export async function uploadFile(req: Request, res: Response): Promise<void> {
   try {
@@ -176,6 +176,144 @@ export async function uploadFile(req: Request, res: Response): Promise<void> {
       title: 'Internal Server Error',
       status: 500,
       detail: error instanceof Error ? error.message : 'Failed to upload file',
+    });
+  }
+}
+
+/**
+ * Upload file (multipart form-data)
+ */
+export async function uploadFileMultipart(req: Request, res: Response): Promise<void> {
+  try {
+    const file = req.file;
+    const { entityType, entityId } = req.body;
+
+    if (!file) {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'No file provided',
+      });
+      return;
+    }
+
+    // Validate that entityType and entityId are strings, not arrays
+    if (typeof entityType !== 'string' || typeof entityId !== 'string') {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'entityType and entityId must be strings',
+      });
+      return;
+    }
+
+    if (!entityType || !entityId) {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'entityType and entityId are required',
+      });
+      return;
+    }
+
+    // Get user ID from request (set by auth middleware)
+    const userId = (req as any).user?.id;
+
+    // Upload file
+    const result = file.size > 5 * 1024 * 1024
+      ? await googleDrive.uploadFileResumable(file.buffer, file.originalname, file.mimetype, entityType, entityId, userId)
+      : await googleDrive.uploadFile(file.buffer, file.originalname, file.mimetype, entityType, entityId, userId);
+
+    res.status(201).json({
+      message: 'File uploaded successfully',
+      file: result,
+    });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: error instanceof Error ? error.message : 'Failed to upload file',
+    });
+  }
+}
+
+/**
+ * Upload multiple files (multipart form-data)
+ */
+export async function uploadMultipleFiles(req: Request, res: Response): Promise<void> {
+  try {
+    const files = req.files as Express.Multer.File[];
+    const { entityType, entityId } = req.body;
+
+    if (!files || files.length === 0) {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'No files provided',
+      });
+      return;
+    }
+
+    // Validate that entityType and entityId are strings, not arrays
+    if (typeof entityType !== 'string' || typeof entityId !== 'string') {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'entityType and entityId must be strings',
+      });
+      return;
+    }
+
+    if (!entityType || !entityId) {
+      res.status(400).json({
+        type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'entityType and entityId are required',
+      });
+      return;
+    }
+
+    // Get user ID from request (set by auth middleware)
+    const userId = (req as any).user?.id;
+
+    // Upload all files
+    const uploadPromises = files.map(file =>
+      file.size > 5 * 1024 * 1024
+        ? googleDrive.uploadFileResumable(file.buffer, file.originalname, file.mimetype, entityType, entityId, userId)
+        : googleDrive.uploadFile(file.buffer, file.originalname, file.mimetype, entityType, entityId, userId)
+    );
+
+    const results = await Promise.allSettled(uploadPromises);
+
+    const successful = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<any>).value);
+    const failed = results.filter(r => r.status === 'rejected').map((r, index) => ({
+      fileName: files[index].originalname,
+      error: (r as PromiseRejectedResult).reason.message,
+    }));
+
+    res.status(207).json({ // 207 Multi-Status
+      message: `Uploaded ${successful.length} of ${files.length} files`,
+      successful: successful.length,
+      failed: failed.length,
+      total: files.length,
+      files: successful,
+      errors: failed,
+    });
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: error instanceof Error ? error.message : 'Failed to upload files',
     });
   }
 }

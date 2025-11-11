@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as googleDriveController from '../controllers/googleDrive';
 import { authenticate } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { upload, handleMulterError } from '../middleware/upload';
 
 const router = Router();
 
@@ -14,6 +15,8 @@ router.get('/auth/status', authenticate, googleDriveController.getConnectionStat
 
 // File operations
 router.post('/upload', authenticate, requirePermission('files', 'create'), googleDriveController.uploadFile);
+router.post('/upload/multipart', authenticate, requirePermission('files', 'create'), upload.single('file'), handleMulterError, googleDriveController.uploadFileMultipart);
+router.post('/upload/batch', authenticate, requirePermission('files', 'create'), upload.array('files', 10), handleMulterError, googleDriveController.uploadMultipleFiles);
 router.get('/list', authenticate, requirePermission('files', 'read'), googleDriveController.listFiles);
 router.get('/:fileId', authenticate, requirePermission('files', 'read'), googleDriveController.getFileMetadata);
 router.delete('/:fileId', authenticate, requirePermission('files', 'delete'), googleDriveController.deleteFile);
