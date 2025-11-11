@@ -4,3 +4,4 @@ export * from './usePolicies';
 export * from './useTrainingProducts';
 export * from './useUsers';
 export * from './useDashboard';
+export * from './useFeedback';

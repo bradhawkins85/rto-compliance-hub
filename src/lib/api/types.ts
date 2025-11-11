@@ -208,3 +208,79 @@ export interface ListUsersParams extends ListQueryParams {
   role?: string;
   status?: string;
 }
+
+// Feedback types
+export interface Feedback {
+  id: string;
+  type: 'learner' | 'employer' | 'industry';
+  trainingProductId?: string;
+  trainerId?: string;
+  courseId?: string;
+  rating?: number;
+  comments?: string;
+  anonymous: boolean;
+  sentiment?: number;
+  themes?: string[];
+  submittedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  trainingProduct?: {
+    id: string;
+    code: string;
+    name: string;
+  };
+}
+
+export interface FeedbackInsights {
+  summary: {
+    totalCount: number;
+    averageRating: number | null;
+    averageSentiment: number | null;
+    dateRange: {
+      from: string;
+      to: string;
+    };
+  };
+  trend: {
+    direction: 'improving' | 'declining' | 'stable' | null;
+    percentage: number | null;
+    recent: {
+      count: number;
+      averageRating: number | null;
+    };
+    previous: {
+      count: number;
+      averageRating: number | null;
+    };
+  };
+  topThemes: Array<{
+    theme: string;
+    count: number;
+  }>;
+  byType: Record<string, {
+    count: number;
+    averageRating: number | null;
+    averageSentiment: number | null;
+  }>;
+  recommendations: string[];
+}
+
+export interface ListFeedbackParams extends ListQueryParams {
+  type?: 'learner' | 'employer' | 'industry';
+  trainingProductId?: string;
+  trainerId?: string;
+  courseId?: string;
+  anonymous?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
+  minRating?: number;
+  maxRating?: number;
+}
+
+export interface FeedbackInsightsParams {
+  type?: 'learner' | 'employer' | 'industry';
+  trainingProductId?: string;
+  trainerId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
