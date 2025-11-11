@@ -5,6 +5,7 @@ import {
   detectFormType,
   mapJotFormToFeedback,
 } from '../utils/jotform';
+import { analyzeSingleFeedback } from '../services/aiAnalysis';
 
 const prisma = new PrismaClient();
 
@@ -179,6 +180,15 @@ async function processWebhookSubmission(submissionId: string, retryCount = 0): P
     });
 
     console.log('✅ Feedback created:', feedback.id);
+
+    // Analyze feedback with AI asynchronously (don't wait for completion)
+    if (feedback.comments) {
+      setImmediate(() => {
+        analyzeSingleFeedback(feedback.id).catch(err => {
+          console.error('Failed to analyze feedback:', err);
+        });
+      });
+    }
 
     // Mark submission as completed
     await prisma.webhookSubmission.update({

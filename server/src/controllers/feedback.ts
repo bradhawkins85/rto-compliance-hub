@@ -14,6 +14,7 @@ import {
   updateFeedbackSchema,
   formatValidationErrors,
 } from '../utils/validation';
+import { analyzeSingleFeedback } from '../services/aiAnalysis';
 
 const prisma = new PrismaClient();
 
@@ -206,6 +207,15 @@ export async function createFeedback(req: Request, res: Response): Promise<void>
         },
       },
     });
+
+    // Analyze feedback with AI asynchronously (don't wait for completion)
+    if (feedback.comments) {
+      setImmediate(() => {
+        analyzeSingleFeedback(feedback.id).catch(err => {
+          console.error('Failed to analyze feedback:', err);
+        });
+      });
+    }
 
     // Create audit log
     if (req.user) {

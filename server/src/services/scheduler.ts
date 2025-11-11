@@ -3,6 +3,7 @@ import { syncEmployees } from '../services/xeroSync';
 import { PrismaClient } from '@prisma/client';
 import { syncAll } from './accelerateSync';
 import { accelerateClient } from './accelerate';
+import { processAllPendingFeedback } from './aiAnalysis';
 
 const prisma = new PrismaClient();
 
@@ -297,7 +298,90 @@ export function stopAllScheduledJobs(): void {
 export function initializeScheduler(): void {
   console.log('🔧 Initializing scheduler...');
   scheduleDailySync();
+  scheduleFeedbackAIAnalysis();
   console.log('✅ Scheduler initialized successfully');
   console.log('⚙️  Initializing job scheduler...');
   scheduleAccelerateSync();
+}
+
+/**
+ * Schedule feedback AI analysis to run daily at 1:00 AM
+ * Runs before other syncs to have fresh analysis data
+ */
+export function scheduleFeedbackAIAnalysis(): void {
+  cron.schedule('0 1 * * *', async () => {
+    console.log('🤖 Starting scheduled feedback AI analysis at 1:00 AM...');
+    
+    try {
+      const result = await processAllPendingFeedback();
+      
+      console.log(`✅ Feedback analysis completed:
+        - Processed: ${result.processed}
+        - Failed: ${result.failed}`);
+      
+      // Update job record
+      const job = await prisma.job.findFirst({
+        where: { name: 'feedbackAIAnalysis' },
+      });
+      
+      if (!job) {
+        await prisma.job.create({
+          data: {
+            name: 'feedbackAIAnalysis',
+            status: 'Completed',
+            schedule: '0 1 * * *', // Cron: 1:00 AM daily
+            lastRunAt: new Date(),
+            lastResult: `Processed: ${result.processed}, Failed: ${result.failed}`,
+            nextRunAt: getNextRunTime(1), // 1:00 AM next day
+          },
+        });
+      } else {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: 'Completed',
+            lastRunAt: new Date(),
+            lastResult: `Processed: ${result.processed}, Failed: ${result.failed}`,
+            nextRunAt: getNextRunTime(1),
+          },
+        });
+      }
+    } catch (error) {
+      console.error('❌ Scheduled feedback analysis failed:', error);
+      
+      // Update job status
+      const job = await prisma.job.findFirst({
+        where: { name: 'feedbackAIAnalysis' },
+      });
+      
+      if (job) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: 'Failed',
+            lastResult: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+      }
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
+  console.log('📅 Feedback AI analysis scheduled for 1:00 AM daily (Australia/Sydney timezone)');
+}
+
+/**
+ * Helper to get next run time for a specific hour
+ */
+function getNextRunTime(hour: number): Date {
+  const next = new Date();
+  next.setHours(hour, 0, 0, 0);
+  
+  // If the time has passed today, schedule for tomorrow
+  if (new Date() >= next) {
+    next.setDate(next.getDate() + 1);
+  }
+  
+  return next;
 }
