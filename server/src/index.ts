@@ -10,6 +10,9 @@ import trainingProductsRoutes from './routes/trainingProducts';
 import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
+import xeroSyncRoutes from './routes/xeroSync';
+import { apiRateLimiter } from './middleware/rateLimit';
+import { initializeScheduler } from './services/scheduler';
 import webhooksRoutes from './routes/webhooks';
 import accelerateSyncRoutes from './routes/accelerateSync';
 import { apiRateLimiter } from './middleware/rateLimit';
@@ -75,6 +78,7 @@ app.use('/api/v1/training-products', trainingProductsRoutes);
 app.use('/api/v1/sops', sopsRoutes);
 app.use('/api/v1/pd', pdRoutes);
 app.use('/api/v1/credentials', credentialsRoutes);
+app.use('/api/v1/sync/xero', xeroSyncRoutes);
 app.use('/api/v1/webhooks', webhooksRoutes);
 app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
 

@@ -25,6 +25,7 @@ model User {
   password  String?
   department String  // Training, Admin, Management, Support
   status    String   @default("Active") // Active, Inactive
+  xeroEmployeeId String? // External Xero employee ID for sync
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -41,6 +42,7 @@ model User {
   @@index([email])
   @@index([department])
   @@index([status])
+  @@index([xeroEmployeeId])
   @@map("users")
 }
 
@@ -523,6 +525,77 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ============================================================================
+// XERO INTEGRATION
+// ============================================================================
+
+model XeroConnection {
+  id            String    @id @default(uuid())
+  tenantId      String    @unique // Xero tenant/organization ID
+  tenantName    String?
+  accessToken   String    @db.Text // Encrypted OAuth2 access token
+  refreshToken  String    @db.Text // Encrypted OAuth2 refresh token
+  expiresAt     DateTime  // Token expiration timestamp
+  tokenType     String    @default("Bearer")
+  scopes        String[]  // OAuth scopes granted
+  isActive      Boolean   @default(true)
+  lastSyncAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  employeeMappings XeroEmployeeMapping[]
+  syncLogs         XeroSyncLog[]
+
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@map("xero_connections")
+}
+
+model XeroEmployeeMapping {
+  id              String    @id @default(uuid())
+  xeroConnectionId String
+  xeroEmployeeId  String    // Xero employee UUID
+  userId          String    @unique // Internal staff/user ID
+  lastSyncedAt    DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  xeroConnection XeroConnection @relation(fields: [xeroConnectionId], references: [id], onDelete: Cascade)
+
+  @@unique([xeroConnectionId, xeroEmployeeId])
+  @@index([xeroConnectionId])
+  @@index([userId])
+  @@index([xeroEmployeeId])
+  @@map("xero_employee_mappings")
+}
+
+model XeroSyncLog {
+  id               String    @id @default(uuid())
+  xeroConnectionId String?
+  syncType         String    // manual, scheduled
+  status           String    // pending, running, completed, failed
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  employeesCreated Int       @default(0)
+  employeesUpdated Int       @default(0)
+  employeesFailed  Int       @default(0)
+  errorMessage     String?   @db.Text
+  details          Json?     // Detailed sync results
+  triggeredBy      String?   // User ID who triggered manual sync
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  xeroConnection XeroConnection? @relation(fields: [xeroConnectionId], references: [id], onDelete: SetNull)
+
+  @@index([xeroConnectionId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([syncType])
+  @@map("xero_sync_logs")
 model WebhookSubmission {
   id            String   @id @default(uuid())
   source        String   // jotform
