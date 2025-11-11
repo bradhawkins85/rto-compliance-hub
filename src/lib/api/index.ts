@@ -9,6 +9,7 @@ export { trainingProductsApi } from './trainingProducts';
 export { usersApi } from './users';
 export { dashboardApi } from './dashboard';
 export { feedbackApi } from './feedback';
+export { assetsApi } from './assets';
 
 // Export types
 export type * from './types';

@@ -284,3 +284,76 @@ export interface FeedbackInsightsParams {
   dateFrom?: string;
   dateTo?: string;
 }
+
+// Asset types
+export interface Asset {
+  id: string;
+  type: string;
+  name: string;
+  serialNumber?: string;
+  location?: string;
+  status: 'Available' | 'Assigned' | 'Servicing' | 'Retired';
+  purchaseDate?: string;
+  purchaseCost?: number;
+  lastServiceAt?: string;
+  nextServiceAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssetService {
+  id: string;
+  assetId: string;
+  serviceDate: string;
+  servicedBy?: string;
+  notes?: string;
+  cost?: number;
+  documents: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssetWithHistory extends Asset {
+  services: AssetService[];
+}
+
+export interface CreateAssetData {
+  type: string;
+  name: string;
+  serialNumber?: string;
+  location?: string;
+  status?: 'Available' | 'Assigned' | 'Servicing' | 'Retired';
+  purchaseDate?: string;
+  purchaseCost?: number;
+}
+
+export interface UpdateAssetData {
+  type?: string;
+  name?: string;
+  serialNumber?: string;
+  location?: string;
+  status?: 'Available' | 'Assigned' | 'Servicing' | 'Retired';
+  purchaseDate?: string;
+  purchaseCost?: number;
+  nextServiceAt?: string;
+}
+
+export interface LogServiceData {
+  serviceDate: string;
+  servicedBy?: string;
+  notes?: string;
+  cost?: number;
+  documents?: string[];
+}
+
+export interface TransitionStateData {
+  state: 'Available' | 'Assigned' | 'Servicing' | 'Retired';
+  notes?: string;
+}
+
+export interface ListAssetsParams extends ListQueryParams {
+  type?: string;
+  status?: 'Available' | 'Assigned' | 'Servicing' | 'Retired';
+  location?: string;
+  serviceDueBefore?: string;
+}
