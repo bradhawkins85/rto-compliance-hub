@@ -481,11 +481,41 @@ model Notification {
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailLog EmailLog?
 
   @@index([userId])
   @@index([read])
   @@index([createdAt])
   @@map("notifications")
+}
+
+model EmailLog {
+  id              String    @id @default(uuid())
+  notificationId  String?   @unique
+  to              String
+  from            String
+  subject         String
+  templateName    String?
+  status          String    @default("pending") // pending, sent, failed, bounced
+  retryCount      Int       @default(0)
+  lastRetryAt     DateTime?
+  sentAt          DateTime?
+  failureReason   String?   @db.Text
+  messageId       String?   // External provider message ID
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  unsubscribed    Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([to])
+  @@index([createdAt])
+  @@index([templateName])
+  @@map("email_logs")
 }
 
 model Job {

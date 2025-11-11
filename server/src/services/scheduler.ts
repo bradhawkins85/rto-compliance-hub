@@ -4,6 +4,13 @@ import { PrismaClient } from '@prisma/client';
 import { syncAll } from './accelerateSync';
 import { accelerateClient } from './accelerate';
 import { processAllPendingFeedback } from './aiAnalysis';
+import {
+  sendPolicyReviewReminders,
+  sendCredentialExpiryAlerts,
+  sendPDDueReminders,
+  sendDailyDigests,
+} from './emailNotifications';
+import { retryFailedEmails } from './email';
 
 const prisma = new PrismaClient();
 
@@ -299,6 +306,7 @@ export function initializeScheduler(): void {
   console.log('🔧 Initializing scheduler...');
   scheduleDailySync();
   scheduleFeedbackAIAnalysis();
+  scheduleEmailNotifications();
   console.log('✅ Scheduler initialized successfully');
   console.log('⚙️  Initializing job scheduler...');
   scheduleAccelerateSync();
@@ -384,4 +392,138 @@ function getNextRunTime(hour: number): Date {
   }
   
   return next;
+}
+
+/**
+ * Schedule email notifications
+ */
+export function scheduleEmailNotifications(): void {
+  // Send daily digest at 7:00 AM
+  cron.schedule('0 7 * * *', async () => {
+    console.log('📧 Starting daily digest emails at 7:00 AM...');
+    
+    try {
+      const result = await sendDailyDigests();
+      console.log(`✅ Daily digests sent: ${result.sent} sent, ${result.failed} failed`);
+      
+      // Update job record
+      await updateJobRecord('emailDailyDigests', 'Completed', `Sent: ${result.sent}, Failed: ${result.failed}`, '0 7 * * *');
+    } catch (error) {
+      console.error('❌ Error sending daily digests:', error);
+      await updateJobRecord('emailDailyDigests', 'Failed', error instanceof Error ? error.message : 'Unknown error', '0 7 * * *');
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
+  // Send policy review reminders at 8:00 AM
+  cron.schedule('0 8 * * *', async () => {
+    console.log('📧 Starting policy review reminders at 8:00 AM...');
+    
+    try {
+      const result = await sendPolicyReviewReminders();
+      console.log(`✅ Policy review reminders sent: ${result.sent} sent, ${result.failed} failed`);
+      
+      await updateJobRecord('emailPolicyReviews', 'Completed', `Sent: ${result.sent}, Failed: ${result.failed}`, '0 8 * * *');
+    } catch (error) {
+      console.error('❌ Error sending policy review reminders:', error);
+      await updateJobRecord('emailPolicyReviews', 'Failed', error instanceof Error ? error.message : 'Unknown error', '0 8 * * *');
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
+  // Send credential expiry alerts at 8:30 AM
+  cron.schedule('30 8 * * *', async () => {
+    console.log('📧 Starting credential expiry alerts at 8:30 AM...');
+    
+    try {
+      const result = await sendCredentialExpiryAlerts();
+      console.log(`✅ Credential expiry alerts sent: ${result.sent} sent, ${result.failed} failed`);
+      
+      await updateJobRecord('emailCredentialExpiry', 'Completed', `Sent: ${result.sent}, Failed: ${result.failed}`, '30 8 * * *');
+    } catch (error) {
+      console.error('❌ Error sending credential expiry alerts:', error);
+      await updateJobRecord('emailCredentialExpiry', 'Failed', error instanceof Error ? error.message : 'Unknown error', '30 8 * * *');
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
+  // Send PD due reminders at 9:00 AM
+  cron.schedule('0 9 * * *', async () => {
+    console.log('📧 Starting PD due reminders at 9:00 AM...');
+    
+    try {
+      const result = await sendPDDueReminders();
+      console.log(`✅ PD due reminders sent: ${result.sent} sent, ${result.failed} failed`);
+      
+      await updateJobRecord('emailPDReminders', 'Completed', `Sent: ${result.sent}, Failed: ${result.failed}`, '0 9 * * *');
+    } catch (error) {
+      console.error('❌ Error sending PD due reminders:', error);
+      await updateJobRecord('emailPDReminders', 'Failed', error instanceof Error ? error.message : 'Unknown error', '0 9 * * *');
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
+  // Retry failed emails every 2 hours
+  cron.schedule('0 */2 * * *', async () => {
+    console.log('🔄 Retrying failed emails...');
+    
+    try {
+      const result = await retryFailedEmails();
+      console.log(`✅ Email retry: ${result.succeeded} succeeded, ${result.failed} failed`);
+      
+      await updateJobRecord('emailRetryFailed', 'Completed', `Retried: ${result.retried}, Succeeded: ${result.succeeded}, Failed: ${result.failed}`, '0 */2 * * *');
+    } catch (error) {
+      console.error('❌ Error retrying failed emails:', error);
+      await updateJobRecord('emailRetryFailed', 'Failed', error instanceof Error ? error.message : 'Unknown error', '0 */2 * * *');
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
+  console.log('📅 Email notifications scheduled:');
+  console.log('   - Daily digests: 7:00 AM');
+  console.log('   - Policy reviews: 8:00 AM');
+  console.log('   - Credential expiry: 8:30 AM');
+  console.log('   - PD reminders: 9:00 AM');
+  console.log('   - Retry failed: Every 2 hours');
+}
+
+/**
+ * Helper to update job record
+ */
+async function updateJobRecord(jobName: string, status: string, result: string, schedule: string): Promise<void> {
+  try {
+    const job = await prisma.job.findFirst({
+      where: { name: jobName },
+    });
+
+    if (!job) {
+      await prisma.job.create({
+        data: {
+          name: jobName,
+          status,
+          schedule,
+          lastRunAt: new Date(),
+          lastResult: result,
+          nextRunAt: getNextRunTime(parseInt(schedule.split(' ')[1])),
+        },
+      });
+    } else {
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status,
+          lastRunAt: new Date(),
+          lastResult: result,
+          nextRunAt: getNextRunTime(parseInt(schedule.split(' ')[1])),
+        },
+      });
+    }
+  } catch (error) {
+    console.error(`Error updating job record for ${jobName}:`, error);
+  }
 }
