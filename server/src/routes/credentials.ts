@@ -18,6 +18,18 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/credentials/export
+ * @desc    Export credentials as CSV
+ * @access  Private - requires 'read' permission on 'credentials'
+ */
+router.get(
+  '/export',
+  authenticate,
+  requirePermission('credentials', 'read'),
+  credentialsController.exportCredentials
+);
+
+/**
  * @route   POST /api/v1/credentials
  * @desc    Create new credential
  * @access  Private - requires 'create' permission on 'credentials'

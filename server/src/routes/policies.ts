@@ -18,6 +18,18 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/policies/export
+ * @desc    Export policies as CSV
+ * @access  Private - requires 'read' permission on 'policies'
+ */
+router.get(
+  '/export',
+  authenticate,
+  requirePermission('policies', 'read'),
+  policiesController.exportPolicies
+);
+
+/**
  * @route   POST /api/v1/policies
  * @desc    Create new policy
  * @access  Private - requires 'create' permission on 'policies'

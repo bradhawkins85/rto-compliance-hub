@@ -16,6 +16,13 @@ import {
   listAssetsQuerySchema,
   formatValidationErrors,
 } from '../utils/validation';
+import {
+  generateCSV,
+  formatDateForCSV,
+  formatArrayForCSV,
+  generateExportFilename,
+  setDownloadHeaders,
+} from '../services/exportService';
 
 const prisma = new PrismaClient();
 
@@ -639,6 +646,127 @@ export async function deleteAsset(req: Request, res: Response): Promise<void> {
       title: 'Internal Server Error',
       status: 500,
       detail: 'An error occurred while deleting asset',
+      instance: req.path,
+    });
+  }
+}
+
+/**
+ * Export assets as CSV
+ * GET /api/v1/assets/export
+ */
+export async function exportAssets(req: Request, res: Response): Promise<void> {
+  try {
+    const { type, status, location, serviceDueBefore } = req.query;
+
+    // Build where clause (same as list)
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (type) {
+      where.type = { contains: type as string, mode: 'insensitive' };
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (location) {
+      where.location = { contains: location as string, mode: 'insensitive' };
+    }
+
+    if (serviceDueBefore) {
+      where.nextServiceAt = {
+        lte: new Date(serviceDueBefore as string),
+      };
+    }
+
+    // Get all assets (no pagination for export)
+    const assets = await prisma.asset.findMany({
+      where,
+      orderBy: {
+        name: 'asc',
+      },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        serialNumber: true,
+        location: true,
+        status: true,
+        purchaseDate: true,
+        purchaseCost: true,
+        lastServiceAt: true,
+        nextServiceAt: true,
+        createdAt: true,
+        updatedAt: true,
+        services: {
+          select: {
+            serviceDate: true,
+            notes: true,
+            cost: true,
+            servicedBy: true,
+          },
+          orderBy: {
+            serviceDate: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    // Generate CSV
+    const headers = [
+      'ID',
+      'Type',
+      'Name',
+      'Serial Number',
+      'Location',
+      'Status',
+      'Purchase Date',
+      'Purchase Cost',
+      'Last Service Date',
+      'Next Service Date',
+      'Latest Service Date',
+      'Latest Service Notes',
+      'Latest Service Cost',
+      'Latest Serviced By',
+      'Created At',
+      'Updated At',
+    ];
+
+    const csv = generateCSV(headers, assets, {
+      'ID': (a) => a.id,
+      'Type': (a) => a.type,
+      'Name': (a) => a.name,
+      'Serial Number': (a) => a.serialNumber || '',
+      'Location': (a) => a.location || '',
+      'Status': (a) => a.status,
+      'Purchase Date': (a) => formatDateForCSV(a.purchaseDate),
+      'Purchase Cost': (a) => a.purchaseCost ? a.purchaseCost.toString() : '',
+      'Last Service Date': (a) => formatDateForCSV(a.lastServiceAt),
+      'Next Service Date': (a) => formatDateForCSV(a.nextServiceAt),
+      'Latest Service Date': (a) => a.services[0] ? formatDateForCSV(a.services[0].serviceDate) : '',
+      'Latest Service Notes': (a) => a.services[0]?.notes || '',
+      'Latest Service Cost': (a) => a.services[0]?.cost ? a.services[0].cost.toString() : '',
+      'Latest Serviced By': (a) => a.services[0]?.servicedBy || '',
+      'Created At': (a) => formatDateForCSV(a.createdAt),
+      'Updated At': (a) => formatDateForCSV(a.updatedAt),
+    });
+
+    // Set headers for file download
+    const filename = generateExportFilename('assets');
+    setDownloadHeaders(res, filename);
+    
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export assets error:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'An error occurred while exporting assets',
       instance: req.path,
     });
   }
