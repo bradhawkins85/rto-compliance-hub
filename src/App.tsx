@@ -10,6 +10,7 @@ import { ResourcesView } from '@/components/views/ResourcesView'
 import { ComplaintsView } from '@/components/views/ComplaintsView'
 import { OnboardingView } from '@/components/views/OnboardingView'
 import { FileUploadDemo } from '@/components/views/FileUploadDemo'
+import JobsView from '@/components/views/JobsView'
 import { Toaster } from '@/components/ui/sonner'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
         {activeView === 'resources' && <ResourcesView />}
         {activeView === 'feedback' && <FeedbackView />}
         {activeView === 'complaints' && <ComplaintsView />}
+        {activeView === 'jobs' && <JobsView />}
         {activeView === 'files' && <FileUploadDemo />}
       </main>
 

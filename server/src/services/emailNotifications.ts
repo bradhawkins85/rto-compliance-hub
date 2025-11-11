@@ -472,3 +472,143 @@ export async function sendDailyDigests(): Promise<{
 
   return { sent, failed };
 }
+
+/**
+ * Send weekly digest emails to users (sent on Mondays)
+ */
+export async function sendWeeklyDigests(): Promise<{
+  sent: number;
+  failed: number;
+}> {
+  let sent = 0;
+  let failed = 0;
+
+  try {
+    // Get all active users
+    const users = await prisma.user.findMany({
+      where: {
+        status: 'Active',
+      },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    // Calculate date range for the past week
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    for (const user of users) {
+      try {
+        // Get weekly summary data
+        const [pdCompleted, credentialsAdded, policiesUpdated, complaintsResolved] = await Promise.all([
+          prisma.pDItem.count({
+            where: {
+              userId: user.id,
+              status: 'Completed',
+              updatedAt: {
+                gte: lastWeek,
+              },
+            },
+          }),
+          prisma.credential.count({
+            where: {
+              userId: user.id,
+              createdAt: {
+                gte: lastWeek,
+              },
+            },
+          }),
+          prisma.policy.count({
+            where: {
+              ownerId: user.id,
+              updatedAt: {
+                gte: lastWeek,
+              },
+            },
+          }),
+          prisma.complaint.count({
+            where: {
+              trainerId: user.id,
+              status: 'Closed',
+              updatedAt: {
+                gte: lastWeek,
+              },
+            },
+          }),
+        ]);
+
+        const weeklyData = {
+          pdCompleted,
+          credentialsAdded,
+          policiesUpdated,
+          complaintsResolved,
+        };
+
+        // Only send if there's activity
+        if (pdCompleted > 0 || credentialsAdded > 0 || policiesUpdated > 0 || complaintsResolved > 0) {
+          const result = await sendWeeklyDigestEmail(user.id, weeklyData);
+          
+          if (result.success) {
+            sent++;
+          } else {
+            failed++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error sending weekly digest to user ${user.id}:`, error);
+        failed++;
+      }
+    }
+
+    return { sent, failed };
+  } catch (error) {
+    console.error('Error sending weekly digests:', error);
+    return { sent, failed };
+  }
+}
+
+/**
+ * Send weekly digest email
+ */
+async function sendWeeklyDigestEmail(
+  userId: string,
+  data: {
+    pdCompleted: number;
+    credentialsAdded: number;
+    policiesUpdated: number;
+    complaintsResolved: number;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const html = `
+      <h2>Weekly Summary</h2>
+      <p>Hi ${user.name},</p>
+      <p>Here's your activity summary for the past week:</p>
+      <ul>
+        <li>✅ PD Items Completed: ${data.pdCompleted}</li>
+        <li>📜 Credentials Added: ${data.credentialsAdded}</li>
+        <li>📋 Policies Updated: ${data.policiesUpdated}</li>
+        <li>⚖️ Complaints Resolved: ${data.complaintsResolved}</li>
+      </ul>
+      <p>Keep up the great work!</p>
+    `;
+
+    return await sendEmail(user.email, 'Your Weekly Summary', html);
+  } catch (error) {
+    console.error('Error sending weekly digest email:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
