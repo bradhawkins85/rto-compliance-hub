@@ -20,8 +20,11 @@ import assetsRoutes from './routes/assets';
 import complaintsRoutes from './routes/complaints';
 import onboardingRoutes from './routes/onboarding';
 import reportsRoutes from './routes/reports';
+import jobsRoutes from './routes/jobs';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
+// Import job worker to start it
+import './services/jobWorker';
 
 // Load environment variables
 const PORT = process.env.APP_PORT || 3000;
@@ -90,6 +93,10 @@ app.use('/api/v1/files/google-drive', googleDriveRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/email', emailRoutes);
 app.use('/api/v1/assets', assetsRoutes);
+app.use('/api/v1/complaints', complaintsRoutes);
+app.use('/api/v1/onboarding', onboardingRoutes);
+app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/jobs', jobsRoutes);
 app.use('/api/v1/complaints', complaintsRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
 app.use('/api/v1/reports', reportsRoutes);
