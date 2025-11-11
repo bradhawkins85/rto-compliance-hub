@@ -11,6 +11,12 @@ import {
   listStandardsQuerySchema,
   formatValidationErrors,
 } from '../utils/validation';
+import {
+  generateCSV,
+  formatArrayForCSV,
+  generateExportFilename,
+  setDownloadHeaders,
+} from '../services/exportService';
 
 const prisma = new PrismaClient();
 
@@ -240,6 +246,145 @@ export async function getStandardMappings(req: Request, res: Response): Promise<
       title: 'Internal Server Error',
       status: 500,
       detail: 'An error occurred while retrieving standard mappings',
+      instance: req.path,
+    });
+  }
+}
+
+/**
+ * Export standards mapping as CSV
+ * GET /api/v1/standards/export/mappings
+ */
+export async function exportStandardsMappings(req: Request, res: Response): Promise<void> {
+  try {
+    // Get all standards with their mappings
+    const standards = await prisma.standard.findMany({
+      orderBy: {
+        code: 'asc',
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        clause: true,
+        category: true,
+        policyMappings: {
+          select: {
+            policy: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
+            },
+          },
+        },
+        sopMappings: {
+          select: {
+            sop: {
+              select: {
+                id: true,
+                title: true,
+                version: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Transform data for CSV export - one row per standard-policy mapping
+    const mappingRows: any[] = [];
+    
+    standards.forEach((standard) => {
+      // If standard has no mappings, add one row with empty policy fields
+      if (standard.policyMappings.length === 0 && standard.sopMappings.length === 0) {
+        mappingRows.push({
+          standardCode: standard.code,
+          standardTitle: standard.title,
+          standardClause: standard.clause,
+          standardCategory: standard.category,
+          policyId: '',
+          policyTitle: '',
+          policyStatus: '',
+          sopId: '',
+          sopTitle: '',
+          sopVersion: '',
+        });
+      } else {
+        // Add row for each policy mapping
+        standard.policyMappings.forEach((pm) => {
+          mappingRows.push({
+            standardCode: standard.code,
+            standardTitle: standard.title,
+            standardClause: standard.clause,
+            standardCategory: standard.category,
+            policyId: pm.policy.id,
+            policyTitle: pm.policy.title,
+            policyStatus: pm.policy.status,
+            sopId: '',
+            sopTitle: '',
+            sopVersion: '',
+          });
+        });
+
+        // Add row for each SOP mapping
+        standard.sopMappings.forEach((sm) => {
+          mappingRows.push({
+            standardCode: standard.code,
+            standardTitle: standard.title,
+            standardClause: standard.clause,
+            standardCategory: standard.category,
+            policyId: '',
+            policyTitle: '',
+            policyStatus: '',
+            sopId: sm.sop.id,
+            sopTitle: sm.sop.title,
+            sopVersion: sm.sop.version,
+          });
+        });
+      }
+    });
+
+    // Generate CSV
+    const headers = [
+      'Standard Code',
+      'Standard Title',
+      'Standard Clause',
+      'Category',
+      'Policy ID',
+      'Policy Title',
+      'Policy Status',
+      'SOP ID',
+      'SOP Title',
+      'SOP Version',
+    ];
+
+    const csv = generateCSV(headers, mappingRows, {
+      'Standard Code': (r) => r.standardCode,
+      'Standard Title': (r) => r.standardTitle,
+      'Standard Clause': (r) => r.standardClause || '',
+      'Category': (r) => r.standardCategory || '',
+      'Policy ID': (r) => r.policyId,
+      'Policy Title': (r) => r.policyTitle,
+      'Policy Status': (r) => r.policyStatus,
+      'SOP ID': (r) => r.sopId,
+      'SOP Title': (r) => r.sopTitle,
+      'SOP Version': (r) => r.sopVersion,
+    });
+
+    // Set headers for file download
+    const filename = generateExportFilename('standards-mappings');
+    setDownloadHeaders(res, filename);
+    
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export standards mappings error:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'An error occurred while exporting standards mappings',
       instance: req.path,
     });
   }

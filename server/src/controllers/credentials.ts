@@ -14,6 +14,13 @@ import {
   listCredentialsQuerySchema,
   formatValidationErrors,
 } from '../utils/validation';
+import {
+  generateCSV,
+  formatDateForCSV,
+  formatBooleanForCSV,
+  generateExportFilename,
+  setDownloadHeaders,
+} from '../services/exportService';
 
 const prisma = new PrismaClient();
 
@@ -454,6 +461,118 @@ export async function updateCredential(req: Request, res: Response): Promise<voi
       title: 'Internal Server Error',
       status: 500,
       detail: 'An error occurred while updating credential',
+      instance: req.path,
+    });
+  }
+}
+
+/**
+ * Export credentials as CSV
+ * GET /api/v1/credentials/export
+ */
+export async function exportCredentials(req: Request, res: Response): Promise<void> {
+  try {
+    const { userId, status, expiresBefore, type } = req.query;
+
+    // Build where clause (same as list)
+    const where: any = {};
+
+    if (userId) {
+      where.userId = userId;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (expiresBefore) {
+      where.expiresAt = {
+        lte: new Date(expiresBefore as string),
+      };
+    }
+
+    if (type) {
+      where.type = { contains: type as string, mode: 'insensitive' };
+    }
+
+    // Get all credentials (no pagination for export)
+    const credentials = await prisma.credential.findMany({
+      where,
+      orderBy: {
+        expiresAt: 'asc',
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        issuedAt: true,
+        expiresAt: true,
+        evidenceUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+            department: true,
+          },
+        },
+      },
+    });
+
+    // Calculate additional fields for export
+    const enrichedCredentials = credentials.map((cred: any) => ({
+      ...cred,
+      isExpiringSoon: isExpiringSoon(cred),
+      daysUntilExpiry: cred.expiresAt ? Math.ceil((new Date(cred.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+    }));
+
+    // Generate CSV
+    const headers = [
+      'ID',
+      'Staff Name',
+      'Staff Email',
+      'Department',
+      'Credential Name',
+      'Type',
+      'Status',
+      'Issued At',
+      'Expires At',
+      'Days Until Expiry',
+      'Expiring Soon',
+      'Evidence URL',
+      'Created At',
+    ];
+
+    const csv = generateCSV(headers, enrichedCredentials, {
+      'ID': (c) => c.id,
+      'Staff Name': (c) => c.user?.name || '',
+      'Staff Email': (c) => c.user?.email || '',
+      'Department': (c) => c.user?.department || '',
+      'Credential Name': (c) => c.name,
+      'Type': (c) => c.type || '',
+      'Status': (c) => c.status,
+      'Issued At': (c) => formatDateForCSV(c.issuedAt),
+      'Expires At': (c) => formatDateForCSV(c.expiresAt),
+      'Days Until Expiry': (c) => c.daysUntilExpiry !== null ? c.daysUntilExpiry.toString() : '',
+      'Expiring Soon': (c) => formatBooleanForCSV(c.isExpiringSoon),
+      'Evidence URL': (c) => c.evidenceUrl || '',
+      'Created At': (c) => formatDateForCSV(c.createdAt),
+    });
+
+    // Set headers for file download
+    const filename = generateExportFilename('credentials');
+    setDownloadHeaders(res, filename);
+    
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export credentials error:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'An error occurred while exporting credentials',
       instance: req.path,
     });
   }

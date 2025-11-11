@@ -18,6 +18,18 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/standards/export/mappings
+ * @desc    Export standards mappings as CSV
+ * @access  Private - requires 'read' permission on 'standards'
+ */
+router.get(
+  '/export/mappings',
+  authenticate,
+  requirePermission('standards', 'read'),
+  standardsController.exportStandardsMappings
+);
+
+/**
  * @route   GET /api/v1/standards/:id
  * @desc    Get standard details
  * @access  Private - requires 'read' permission on 'standards'

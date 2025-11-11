@@ -16,6 +16,13 @@ import {
   listPoliciesQuerySchema,
   formatValidationErrors,
 } from '../utils/validation';
+import {
+  generateCSV,
+  formatDateForCSV,
+  formatArrayForCSV,
+  generateExportFilename,
+  setDownloadHeaders,
+} from '../services/exportService';
 
 const prisma = new PrismaClient();
 
@@ -699,6 +706,134 @@ export async function getPolicyVersions(req: Request, res: Response): Promise<vo
       title: 'Internal Server Error',
       status: 500,
       detail: 'An error occurred while retrieving policy versions',
+      instance: req.path,
+    });
+  }
+}
+
+/**
+ * Export policies as CSV
+ * GET /api/v1/policies/export
+ */
+export async function exportPolicies(req: Request, res: Response): Promise<void> {
+  try {
+    const { standardId, status, ownerId, q } = req.query;
+
+    // Build where clause (same as list)
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (ownerId) {
+      where.ownerId = ownerId;
+    }
+
+    if (q) {
+      where.OR = [
+        { title: { contains: q as string, mode: 'insensitive' } },
+      ];
+    }
+
+    if (standardId) {
+      where.standardMappings = {
+        some: {
+          standardId: standardId as string,
+        },
+      };
+    }
+
+    // Get all policies (no pagination for export)
+    const policies = await prisma.policy.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        reviewDate: true,
+        fileUrl: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        standardMappings: {
+          select: {
+            standard: {
+              select: {
+                code: true,
+                title: true,
+              },
+            },
+          },
+        },
+        versions: {
+          where: {
+            isCurrent: true,
+          },
+          select: {
+            version: true,
+            publishedAt: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    // Generate CSV
+    const headers = [
+      'ID',
+      'Title',
+      'Status',
+      'Owner Name',
+      'Owner Email',
+      'Current Version',
+      'Published At',
+      'Review Date',
+      'File URL',
+      'Mapped Standards',
+      'Created At',
+      'Updated At',
+    ];
+
+    const csv = generateCSV(headers, policies, {
+      'ID': (p) => p.id,
+      'Title': (p) => p.title,
+      'Status': (p) => p.status,
+      'Owner Name': (p) => p.owner?.name || '',
+      'Owner Email': (p) => p.owner?.email || '',
+      'Current Version': (p) => p.versions[0]?.version || '',
+      'Published At': (p) => formatDateForCSV(p.versions[0]?.publishedAt),
+      'Review Date': (p) => formatDateForCSV(p.reviewDate),
+      'File URL': (p) => p.fileUrl || '',
+      'Mapped Standards': (p) => formatArrayForCSV(
+        p.standardMappings.map((sm: any) => `${sm.standard.code}: ${sm.standard.title}`)
+      ),
+      'Created At': (p) => formatDateForCSV(p.createdAt),
+      'Updated At': (p) => formatDateForCSV(p.updatedAt),
+    });
+
+    // Set headers for file download
+    const filename = generateExportFilename('policies');
+    setDownloadHeaders(res, filename);
+    
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error('Export policies error:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'An error occurred while exporting policies',
       instance: req.path,
     });
   }

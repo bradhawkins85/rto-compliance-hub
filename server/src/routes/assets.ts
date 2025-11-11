@@ -18,6 +18,18 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/assets/export
+ * @desc    Export assets as CSV
+ * @access  Private - requires 'read' permission on 'assets'
+ */
+router.get(
+  '/export',
+  authenticate,
+  requirePermission('assets', 'read'),
+  assetsController.exportAssets
+);
+
+/**
  * @route   POST /api/v1/assets
  * @desc    Create new asset
  * @access  Private - requires 'create' permission on 'assets'
