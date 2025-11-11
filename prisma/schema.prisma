@@ -844,3 +844,105 @@ model GoogleDriveSyncLog {
   @@index([startedAt])
   @@map("google_drive_sync_logs")
 }
+
+// ============================================================================
+// HR & ONBOARDING MODULE
+// ============================================================================
+
+model OnboardingWorkflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  department  String?  // If null, applies to all departments
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  taskTemplates OnboardingTaskTemplate[]
+  assignments   OnboardingAssignment[]
+
+  @@index([department])
+  @@index([isActive])
+  @@map("onboarding_workflows")
+}
+
+model OnboardingTaskTemplate {
+  id                String   @id @default(uuid())
+  workflowId        String
+  title             String
+  description       String?  @db.Text
+  taskType          String   // account, access, policy, sop, pd, equipment, orientation, safety, compliance
+  department        String?  // If null, applies to all departments
+  role              String?  // If null, applies to all roles
+  orderIndex        Int      @default(0) // Order in which tasks should appear
+  daysToComplete    Int      @default(7) // Days to complete after assignment
+  isRequired        Boolean  @default(true)
+  sopId             String?  // Link to specific SOP if taskType is 'sop'
+  pdCategory        String?  // PD category if taskType is 'pd'
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  workflow OnboardingWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@index([taskType])
+  @@index([department])
+  @@index([role])
+  @@map("onboarding_task_templates")
+}
+
+model OnboardingAssignment {
+  id                String    @id @default(uuid())
+  userId            String
+  workflowId        String
+  status            String    @default("InProgress") // NotStarted, InProgress, Completed
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  dueDate           DateTime? // Calculated based on workflow duration
+  notificationSentAt DateTime? // Track when incomplete notification was sent
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  workflow OnboardingWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  tasks    OnboardingTask[]
+
+  @@unique([userId, workflowId])
+  @@index([userId])
+  @@index([workflowId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("onboarding_assignments")
+}
+
+model OnboardingTask {
+  id                String    @id @default(uuid())
+  assignmentId      String
+  templateId        String?   // Reference to template that created this task
+  title             String
+  description       String?   @db.Text
+  taskType          String    // account, access, policy, sop, pd, equipment, orientation, safety, compliance
+  status            String    @default("Pending") // Pending, InProgress, Completed, Skipped
+  orderIndex        Int       @default(0)
+  dueDate           DateTime?
+  completedAt       DateTime?
+  completedBy       String?   // User ID who marked as complete
+  evidenceUrl       String?   // Link to completion evidence
+  notes             String?   @db.Text
+  sopId             String?   // Linked SOP if applicable
+  pdItemId          String?   // Linked PD item if applicable
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  assignment OnboardingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([templateId])
+  @@index([status])
+  @@index([taskType])
+  @@index([dueDate])
+  @@map("onboarding_tasks")
+}

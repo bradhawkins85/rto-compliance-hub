@@ -11,6 +11,7 @@ import {
   sendDailyDigests,
 } from './emailNotifications';
 import { retryFailedEmails } from './email';
+import { checkIncompleteOnboarding } from './onboarding';
 
 const prisma = new PrismaClient();
 
@@ -484,11 +485,29 @@ export function scheduleEmailNotifications(): void {
     timezone: 'Australia/Sydney',
   });
 
+  // Check incomplete onboarding at 9:30 AM daily
+  cron.schedule('30 9 * * *', async () => {
+    console.log('📋 Checking incomplete onboarding at 9:30 AM...');
+    
+    try {
+      await checkIncompleteOnboarding();
+      console.log('✅ Incomplete onboarding check completed');
+      
+      await updateJobRecord('checkIncompleteOnboarding', 'Completed', 'Onboarding check completed', '30 9 * * *');
+    } catch (error) {
+      console.error('❌ Error checking incomplete onboarding:', error);
+      await updateJobRecord('checkIncompleteOnboarding', 'Failed', error instanceof Error ? error.message : 'Unknown error', '30 9 * * *');
+    }
+  }, {
+    timezone: 'Australia/Sydney',
+  });
+
   console.log('📅 Email notifications scheduled:');
   console.log('   - Daily digests: 7:00 AM');
   console.log('   - Policy reviews: 8:00 AM');
   console.log('   - Credential expiry: 8:30 AM');
   console.log('   - PD reminders: 9:00 AM');
+  console.log('   - Onboarding check: 9:30 AM');
   console.log('   - Retry failed: Every 2 hours');
 }
 

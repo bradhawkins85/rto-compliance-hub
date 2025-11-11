@@ -48,6 +48,7 @@ export const listUsersQuerySchema = paginationSchema.extend({
   role: z.string().optional(),
   status: z.enum(['Active', 'Inactive']).optional(),
   q: z.string().optional(),
+  includeOnboarding: z.string().optional(),
   sort: sortSchema,
   fields: fieldsSchema,
 });

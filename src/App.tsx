@@ -8,6 +8,7 @@ import { StaffView } from '@/components/views/StaffView'
 import { FeedbackView } from '@/components/views/FeedbackView'
 import { ResourcesView } from '@/components/views/ResourcesView'
 import { ComplaintsView } from '@/components/views/ComplaintsView'
+import { OnboardingView } from '@/components/views/OnboardingView'
 import { Toaster } from '@/components/ui/sonner'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         {activeView === 'policies' && <PoliciesView />}
         {activeView === 'training' && <TrainingView />}
         {activeView === 'staff' && <StaffView />}
+        {activeView === 'onboarding' && <OnboardingView />}
         {activeView === 'resources' && <ResourcesView />}
         {activeView === 'feedback' && <FeedbackView />}
         {activeView === 'complaints' && <ComplaintsView />}

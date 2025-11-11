@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/StatusBadge'
-import { MagnifyingGlass, Briefcase } from '@phosphor-icons/react'
+import { MagnifyingGlass, Briefcase, CheckCircle } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/helpers'
 import { useState, useMemo } from 'react'
 import { useUsers } from '@/hooks/api'
@@ -48,7 +49,7 @@ function getCredentialStatus(expiryDate: string | null | undefined): 'compliant'
 
 export function StaffView() {
   const [searchQuery, setSearchQuery] = useState('')
-  const { data: usersData, isLoading, error, refetch } = useUsers({ perPage: 100 })
+  const { data: usersData, isLoading, error, refetch } = useUsers({ perPage: 100, includeOnboarding: 'true' })
 
   const staff = usersData?.data || []
 
@@ -124,6 +125,11 @@ export function StaffView() {
           //          3) Add backend endpoint for bulk user details with credentials
           const credentials: any[] = []
           const pdStatus = getPDStatus(credentials)
+          
+          // Get onboarding status if available
+          const onboarding = (member as any).onboarding
+          const hasOnboarding = onboarding?.hasOnboarding || false
+          const onboardingProgress = onboarding?.progress || 100
 
           return (
             <Card key={member.id} className="hover:shadow-md transition-shadow duration-200">
@@ -133,6 +139,12 @@ export function StaffView() {
                     <div className="flex items-center gap-3 mb-2">
                       <StatusBadge status={pdStatus} />
                       <Badge variant="outline">{member.department}</Badge>
+                      {hasOnboarding && onboardingProgress < 100 && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Onboarding
+                        </Badge>
+                      )}
                     </div>
                     <CardTitle className="text-lg">{member.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1 text-muted-foreground text-sm">
@@ -143,6 +155,15 @@ export function StaffView() {
                 </div>
               </CardHeader>
               <CardContent>
+                {hasOnboarding && onboardingProgress < 100 && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Onboarding Progress</span>
+                      <span className="font-medium">{onboardingProgress}%</span>
+                    </div>
+                    <Progress value={onboardingProgress} className="h-2" />
+                  </div>
+                )}
                 {credentials.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No credentials recorded</p>
                 ) : (
