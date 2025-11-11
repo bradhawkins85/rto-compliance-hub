@@ -596,6 +596,8 @@ model XeroSyncLog {
   @@index([startedAt])
   @@index([syncType])
   @@map("xero_sync_logs")
+}
+
 model WebhookSubmission {
   id            String   @id @default(uuid())
   source        String   // jotform
@@ -615,6 +617,8 @@ model WebhookSubmission {
   @@index([status])
   @@index([createdAt])
   @@map("webhook_submissions")
+}
+
 // ============================================================================
 // EXTERNAL INTEGRATIONS - ACCELERATE LMS
 // ============================================================================
@@ -704,4 +708,109 @@ model AccelerateEnrollment {
   @@index([trainingProductId])
   @@index([status])
   @@map("accelerate_enrollments")
+}
+
+// ============================================================================
+// GOOGLE DRIVE INTEGRATION
+// ============================================================================
+
+model GoogleDriveConnection {
+  id            String    @id @default(uuid())
+  accessToken   String    @db.Text // Encrypted OAuth2 access token
+  refreshToken  String    @db.Text // Encrypted OAuth2 refresh token
+  expiresAt     DateTime  // Token expiration timestamp
+  tokenType     String    @default("Bearer")
+  scopes        String[]  // OAuth scopes granted
+  email         String?   // Google account email
+  isActive      Boolean   @default(true)
+  lastSyncAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  files         GoogleDriveFile[]
+  folders       GoogleDriveFolder[]
+  syncLogs      GoogleDriveSyncLog[]
+
+  @@index([isActive])
+  @@index([expiresAt])
+  @@map("google_drive_connections")
+}
+
+model GoogleDriveFolder {
+  id               String   @id @default(uuid())
+  driveConnectionId String
+  driveFolderId    String   @unique // Google Drive folder ID
+  name             String
+  parentFolderId   String?  // Parent folder in Drive
+  folderType       String?  // policies, sops, evidence, credentials, etc.
+  path             String?  // Full path in folder structure
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  driveConnection GoogleDriveConnection @relation(fields: [driveConnectionId], references: [id], onDelete: Cascade)
+  files           GoogleDriveFile[]
+
+  @@index([driveConnectionId])
+  @@index([driveFolderId])
+  @@index([folderType])
+  @@map("google_drive_folders")
+}
+
+model GoogleDriveFile {
+  id               String    @id @default(uuid())
+  driveConnectionId String
+  driveFileId      String    @unique // Google Drive file ID
+  driveFolderId    String?   // Parent folder ID in Google Drive
+  localFolderId    String?   // Local folder record ID
+  entityType       String    // Policy, SOP, Evidence, Credential, etc.
+  entityId         String    // ID of the related local entity
+  fileName         String
+  mimeType         String
+  fileSize         Int       // Size in bytes
+  webViewLink      String?   // Shareable link for viewing
+  webContentLink   String?   // Download link
+  thumbnailLink    String?   // Thumbnail preview link
+  version          Int       @default(1)
+  isLatestVersion  Boolean   @default(true)
+  uploadedBy       String?   // User ID who uploaded
+  uploadedAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime? // Soft delete
+
+  // Relations
+  driveConnection GoogleDriveConnection @relation(fields: [driveConnectionId], references: [id], onDelete: Cascade)
+  folder          GoogleDriveFolder?    @relation(fields: [localFolderId], references: [id])
+
+  @@index([driveConnectionId])
+  @@index([driveFileId])
+  @@index([entityType, entityId])
+  @@index([uploadedBy])
+  @@index([deletedAt])
+  @@map("google_drive_files")
+}
+
+model GoogleDriveSyncLog {
+  id                String    @id @default(uuid())
+  driveConnectionId String?
+  syncType          String    // upload, download, folder_creation, permission_update
+  status            String    @default("Running") // Running, Completed, Failed
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  filesProcessed    Int       @default(0)
+  filesFailed       Int       @default(0)
+  errorMessage      String?   @db.Text
+  triggeredBy       String?   // User ID who triggered
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  driveConnection GoogleDriveConnection? @relation(fields: [driveConnectionId], references: [id], onDelete: SetNull)
+
+  @@index([driveConnectionId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("google_drive_sync_logs")
 }
