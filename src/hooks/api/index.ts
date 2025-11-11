@@ -7,3 +7,4 @@ export * from './useDashboard';
 export * from './useFeedback';
 export * from './useAssets';
 export * from './useComplaints';
+export * from './useOnboarding';

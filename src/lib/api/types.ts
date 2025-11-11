@@ -207,6 +207,7 @@ export interface ListUsersParams extends ListQueryParams {
   department?: string;
   role?: string;
   status?: string;
+  includeOnboarding?: string | boolean;
 }
 
 // Feedback types

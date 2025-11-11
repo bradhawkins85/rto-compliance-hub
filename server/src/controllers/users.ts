@@ -41,7 +41,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
     }
 
     const { page, perPage, skip, take } = getPaginationParams(req);
-    const { department, role, status, q } = validation.data;
+    const { department, role, status, q, includeOnboarding } = validation.data;
     const sortParams = parseSortParams(req);
     const fields = parseFieldsParams(req);
 
@@ -120,17 +120,26 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
       },
     });
 
-    // Transform response to include roles array
-    const transformedUsers = users.map((user: any) => {
+    // Transform response to include roles array and optionally onboarding status
+    const transformedUsers = await Promise.all(users.map(async (user: any) => {
       if (user.userRoles) {
         const { userRoles, ...rest } = user;
-        return {
+        const result: any = {
           ...rest,
           roles: userRoles.map((ur: any) => ur.role.name),
         };
+        
+        // Optionally include onboarding status
+        if (includeOnboarding === 'true' || includeOnboarding === true) {
+          const { getOnboardingStatus } = await import('../services/onboarding');
+          const onboardingStatus = await getOnboardingStatus(user.id);
+          result.onboarding = onboardingStatus;
+        }
+        
+        return result;
       }
       return user;
-    });
+    }));
 
     const response = createPaginatedResponse(transformedUsers, page, perPage, total);
     res.status(200).json(response);
