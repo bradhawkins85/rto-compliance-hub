@@ -21,19 +21,39 @@ import { ListSkeleton } from '@/components/ui/skeleton';
 import { ErrorDisplay } from '@/components/ui/error';
 import { formatDate } from '@/lib/helpers';
 import { toast } from 'sonner';
+import { FilterBar, type ActiveFilter } from '@/components/ui/filter-bar';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { SavedFilters } from '@/components/ui/saved-filters';
+import { SortableHeader } from '@/components/ui/sortable-header';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useSort } from '@/hooks/useSort';
+import { useFilterPresets } from '@/hooks/useFilterPresets';
+import { DateRange } from 'react-day-picker';
 
 export function FeedbackView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<'30' | '90' | 'all'>('90');
+  const [ratingFilter, setRatingFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  // Calculate date range
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Filter presets
+  const { presets, savePreset, deletePreset } = useFilterPresets('feedback');
+
+  // Calculate date range for API
   const dateFrom = useMemo(() => {
-    if (dateRange === 'all') return undefined;
-    const days = parseInt(dateRange);
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return date.toISOString();
+    if (dateRange?.from) {
+      return dateRange.from.toISOString();
+    }
+    return undefined;
+  }, [dateRange]);
+
+  const dateTo = useMemo(() => {
+    if (dateRange?.to) {
+      return dateRange.to.toISOString();
+    }
+    return undefined;
   }, [dateRange]);
 
   // Fetch feedback with filters
@@ -54,16 +74,105 @@ export function FeedbackView() {
 
   const feedback = feedbackData?.data || [];
 
-  // Filter feedback by search query
+  // Filter feedback by search query and rating
   const filteredFeedback = useMemo(() => {
-    if (!searchQuery) return feedback;
-    const query = searchQuery.toLowerCase();
-    return feedback.filter(item =>
-      item.comments?.toLowerCase().includes(query) ||
-      item.trainingProduct?.name.toLowerCase().includes(query) ||
-      item.trainingProduct?.code.toLowerCase().includes(query)
-    );
-  }, [feedback, searchQuery]);
+    let filtered = feedback;
+
+    // Search filter
+    if (debouncedSearch) {
+      const query = debouncedSearch.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.comments?.toLowerCase().includes(query) ||
+        item.trainingProduct?.name.toLowerCase().includes(query) ||
+        item.trainingProduct?.code.toLowerCase().includes(query)
+      );
+    }
+
+    // Rating filter
+    if (ratingFilter !== 'all') {
+      const minRating = parseInt(ratingFilter);
+      filtered = filtered.filter(item => 
+        item.rating !== null && item.rating !== undefined && item.rating >= minRating
+      );
+    }
+
+    // Date range filter (client-side for more precision)
+    if (dateRange?.from) {
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.submittedAt);
+        if (dateRange.to) {
+          return itemDate >= dateRange.from! && itemDate <= dateRange.to;
+        }
+        return itemDate >= dateRange.from!;
+      });
+    }
+
+    return filtered;
+  }, [feedback, debouncedSearch, ratingFilter, dateRange]);
+
+  // Sorting
+  const { sortedData, sortConfig, handleSort } = useSort(filteredFeedback, 'submittedAt', 'desc');
+
+  // Active filters
+  const activeFilters: ActiveFilter[] = useMemo(() => {
+    const filters: ActiveFilter[] = [];
+    
+    if (typeFilter !== 'all') {
+      filters.push({ id: 'type', label: 'Type', value: typeFilter });
+    }
+    if (ratingFilter !== 'all') {
+      filters.push({ id: 'rating', label: 'Min Rating', value: `${ratingFilter}+ stars` });
+    }
+    if (dateRange?.from) {
+      const value = dateRange.to
+        ? `${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}`
+        : `From ${formatDate(dateRange.from)}`;
+      filters.push({ id: 'dateRange', label: 'Date Range', value });
+    }
+    
+    return filters;
+  }, [typeFilter, ratingFilter, dateRange]);
+
+  // Handle filter removal
+  const handleRemoveFilter = (id: string) => {
+    switch (id) {
+      case 'type':
+        setTypeFilter('all');
+        break;
+      case 'rating':
+        setRatingFilter('all');
+        break;
+      case 'dateRange':
+        setDateRange(undefined);
+        break;
+    }
+  };
+
+  // Handle clear all
+  const handleClearAll = () => {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setRatingFilter('all');
+    setDateRange(undefined);
+  };
+
+  // Handle save preset
+  const handleSavePreset = (name: string) => {
+    savePreset(name, {
+      searchQuery,
+      typeFilter,
+      ratingFilter,
+      dateRange,
+    });
+  };
+
+  // Handle load preset
+  const handleLoadPreset = (filters: Record<string, any>) => {
+    setSearchQuery(filters.searchQuery || '');
+    setTypeFilter(filters.typeFilter || 'all');
+    setRatingFilter(filters.ratingFilter || 'all');
+    setDateRange(filters.dateRange);
+  };
 
   // Handle export
   const handleExport = () => {
@@ -114,15 +223,24 @@ export function FeedbackView() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Feedback Management</h2>
           <p className="text-muted-foreground mt-1">Learner, employer, and industry feedback</p>
         </div>
-        <Button onClick={handleExport} disabled={exportMutation.isPending}>
-          <Download className="w-4 h-4 mr-2" />
-          {exportMutation.isPending ? 'Exporting...' : 'Export CSV'}
-        </Button>
+        <div className="flex gap-2">
+          <SavedFilters
+            presets={presets}
+            currentFilters={{ searchQuery, typeFilter, ratingFilter, dateRange }}
+            onLoadPreset={handleLoadPreset}
+            onSavePreset={handleSavePreset}
+            onDeletePreset={deletePreset}
+          />
+          <Button onClick={handleExport} disabled={exportMutation.isPending}>
+            <Download className="w-4 h-4 mr-2" />
+            {exportMutation.isPending ? 'Exporting...' : 'Export CSV'}
+          </Button>
+        </div>
       </div>
 
       {/* Key Metrics */}
@@ -136,7 +254,7 @@ export function FeedbackView() {
             <CardContent>
               <div className="text-2xl font-bold">{insights.summary.totalCount}</div>
               <p className="text-xs text-muted-foreground">
-                Last {dateRange === '30' ? '30' : '90'} days
+                {dateRange?.from ? 'In date range' : 'All time'}
               </p>
             </CardContent>
           </Card>
@@ -227,40 +345,73 @@ export function FeedbackView() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            id="feedback-search"
-            placeholder="Search feedback comments..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+      <FilterBar
+        activeFilters={activeFilters}
+        onRemoveFilter={handleRemoveFilter}
+        onClearAll={handleClearAll}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="relative">
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              id="feedback-search"
+              placeholder="Search feedback..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="learner">Learner</SelectItem>
+              <SelectItem value="employer">Employer</SelectItem>
+              <SelectItem value="industry">Industry</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={ratingFilter} onValueChange={setRatingFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Minimum rating" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Ratings</SelectItem>
+              <SelectItem value="4">4+ Stars</SelectItem>
+              <SelectItem value="3">3+ Stars</SelectItem>
+              <SelectItem value="2">2+ Stars</SelectItem>
+              <SelectItem value="1">1+ Star</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            placeholder="Date range"
           />
         </div>
+      </FilterBar>
 
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="learner">Learner</SelectItem>
-            <SelectItem value="employer">Employer</SelectItem>
-            <SelectItem value="industry">Industry</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={dateRange} onValueChange={(v) => setDateRange(v as any)}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Date range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-            <SelectItem value="all">All time</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Sort by:</span>
+        <SortableHeader
+          label="Date"
+          field="submittedAt"
+          currentField={sortConfig.field}
+          currentDirection={sortConfig.direction}
+          onSort={handleSort}
+        />
+        <SortableHeader
+          label="Rating"
+          field="rating"
+          currentField={sortConfig.field}
+          currentDirection={sortConfig.direction}
+          onSort={handleSort}
+        />
       </div>
 
       {/* Feedback by Type Tabs */}
@@ -268,34 +419,34 @@ export function FeedbackView() {
         <TabsList>
           <TabsTrigger value="all" className="flex items-center gap-2">
             All
-            <Badge variant="secondary">{filteredFeedback.length}</Badge>
+            <Badge variant="secondary">{sortedData.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="learner" className="flex items-center gap-2">
             <GraduationCap className="w-4 h-4" />
             Learner
             <Badge variant="secondary">
-              {filteredFeedback.filter(f => f.type === 'learner').length}
+              {sortedData.filter(f => f.type === 'learner').length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="employer" className="flex items-center gap-2">
             <Building className="w-4 h-4" />
             Employer
             <Badge variant="secondary">
-              {filteredFeedback.filter(f => f.type === 'employer').length}
+              {sortedData.filter(f => f.type === 'employer').length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="industry" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             Industry
             <Badge variant="secondary">
-              {filteredFeedback.filter(f => f.type === 'industry').length}
+              {sortedData.filter(f => f.type === 'industry').length}
             </Badge>
           </TabsTrigger>
         </TabsList>
 
         {['all', 'learner', 'employer', 'industry'].map(tabValue => (
           <TabsContent key={tabValue} value={tabValue} className="space-y-4">
-            {filteredFeedback
+            {sortedData
               .filter(f => tabValue === 'all' || f.type === tabValue)
               .map(item => (
                 <Card key={item.id}>
@@ -372,12 +523,12 @@ export function FeedbackView() {
                   )}
                 </Card>
               ))}
-            {filteredFeedback.filter(f => tabValue === 'all' || f.type === tabValue).length === 0 && (
+            {sortedData.filter(f => tabValue === 'all' || f.type === tabValue).length === 0 && (
               <div className="text-center py-12">
                 <ChatCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No feedback found</h3>
                 <p className="text-muted-foreground">
-                  {searchQuery
+                  {activeFilters.length > 0 || searchQuery
                     ? 'Try adjusting your search or filters'
                     : 'No feedback has been submitted yet'}
                 </p>

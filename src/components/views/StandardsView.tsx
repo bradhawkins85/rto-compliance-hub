@@ -1,11 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import { useState, useMemo } from 'react'
-import { useStandards, useStandardMappings } from '@/hooks/api'
+import { useStandards } from '@/hooks/api'
 import { ListSkeleton } from '@/components/ui/skeleton'
 import { ErrorDisplay } from '@/components/ui/error'
+import { FilterBar, type ActiveFilter } from '@/components/ui/filter-bar'
+import { SavedFilters } from '@/components/ui/saved-filters'
+import { SortableHeader } from '@/components/ui/sortable-header'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useSort } from '@/hooks/useSort'
+import { useFilterPresets } from '@/hooks/useFilterPresets'
 import type { Standard } from '@/lib/api/types'
 
 // Helper to determine status from mapping counts
@@ -18,19 +25,134 @@ function getStatusFromMappings(mappedPolicies: number, mappedEvidence: number): 
 
 export function StandardsView() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [complianceStatusFilter, setComplianceStatusFilter] = useState<string>('all')
+  const [coverageFilter, setCoverageFilter] = useState<string>('all')
+  
+  const debouncedSearch = useDebounce(searchQuery, 300)
   const { data: standardsData, isLoading, error, refetch } = useStandards({ perPage: 100 })
 
   const standards = standardsData?.data || []
 
+  // Filter presets
+  const { presets, savePreset, deletePreset } = useFilterPresets('standards')
+
+  // Apply filters
   const filteredStandards = useMemo(() => {
-    if (!searchQuery) return standards
-    const query = searchQuery.toLowerCase()
-    return standards.filter(standard =>
-      standard.title.toLowerCase().includes(query) ||
-      (standard.clause && standard.clause.toLowerCase().includes(query)) ||
-      (standard.code && standard.code.toLowerCase().includes(query))
-    )
-  }, [standards, searchQuery])
+    let filtered = standards
+
+    // Search filter
+    if (debouncedSearch) {
+      const query = debouncedSearch.toLowerCase()
+      filtered = filtered.filter(standard =>
+        standard.title.toLowerCase().includes(query) ||
+        (standard.clause && standard.clause.toLowerCase().includes(query)) ||
+        (standard.code && standard.code.toLowerCase().includes(query))
+      )
+    }
+
+    // Compliance status filter
+    if (complianceStatusFilter !== 'all') {
+      filtered = filtered.filter(standard => {
+        const mappedPolicies = 0
+        const mappedEvidence = 0
+        const status = getStatusFromMappings(mappedPolicies, mappedEvidence)
+        return status === complianceStatusFilter
+      })
+    }
+
+    // Coverage filter (based on mapping count)
+    if (coverageFilter !== 'all') {
+      filtered = filtered.filter(standard => {
+        const mappedPolicies = 0
+        const mappedEvidence = 0
+        const total = mappedPolicies + mappedEvidence
+        
+        switch (coverageFilter) {
+          case 'none':
+            return total === 0
+          case 'partial':
+            return total > 0 && total < 5
+          case 'complete':
+            return total >= 5
+          default:
+            return true
+        }
+      })
+    }
+
+    return filtered
+  }, [standards, debouncedSearch, complianceStatusFilter, coverageFilter])
+
+  // Sorting
+  const { sortedData, sortConfig, handleSort } = useSort(filteredStandards, null, 'asc')
+
+  // Active filters
+  const activeFilters: ActiveFilter[] = useMemo(() => {
+    const filters: ActiveFilter[] = []
+    
+    if (complianceStatusFilter !== 'all') {
+      const statusLabels = {
+        compliant: 'Compliant',
+        due: 'Due',
+        incomplete: 'Incomplete',
+      }
+      filters.push({ 
+        id: 'complianceStatus', 
+        label: 'Status', 
+        value: statusLabels[complianceStatusFilter as keyof typeof statusLabels] || complianceStatusFilter
+      })
+    }
+    
+    if (coverageFilter !== 'all') {
+      const coverageLabels = {
+        none: 'No Coverage',
+        partial: 'Partial Coverage',
+        complete: 'Complete Coverage',
+      }
+      filters.push({ 
+        id: 'coverage', 
+        label: 'Coverage', 
+        value: coverageLabels[coverageFilter as keyof typeof coverageLabels] || coverageFilter
+      })
+    }
+    
+    return filters
+  }, [complianceStatusFilter, coverageFilter])
+
+  // Handle filter removal
+  const handleRemoveFilter = (id: string) => {
+    switch (id) {
+      case 'complianceStatus':
+        setComplianceStatusFilter('all')
+        break
+      case 'coverage':
+        setCoverageFilter('all')
+        break
+    }
+  }
+
+  // Handle clear all
+  const handleClearAll = () => {
+    setSearchQuery('')
+    setComplianceStatusFilter('all')
+    setCoverageFilter('all')
+  }
+
+  // Handle save preset
+  const handleSavePreset = (name: string) => {
+    savePreset(name, {
+      searchQuery,
+      complianceStatusFilter,
+      coverageFilter,
+    })
+  }
+
+  // Handle load preset
+  const handleLoadPreset = (filters: Record<string, any>) => {
+    setSearchQuery(filters.searchQuery || '')
+    setComplianceStatusFilter(filters.complianceStatusFilter || 'all')
+    setCoverageFilter(filters.coverageFilter || 'all')
+  }
 
   if (isLoading) {
     return (
@@ -80,21 +202,79 @@ export function StandardsView() {
           <h2 className="text-2xl font-semibold tracking-tight">RTO Standards</h2>
           <p className="text-muted-foreground mt-1">Compliance mapping to standards and clauses</p>
         </div>
+        <SavedFilters
+          presets={presets}
+          currentFilters={{ searchQuery, complianceStatusFilter, coverageFilter }}
+          onLoadPreset={handleLoadPreset}
+          onSavePreset={handleSavePreset}
+          onDeletePreset={deletePreset}
+        />
       </div>
 
-      <div className="relative">
-        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          id="standards-search"
-          placeholder="Search standards by clause or title..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
+      <FilterBar
+        activeFilters={activeFilters}
+        onRemoveFilter={handleRemoveFilter}
+        onClearAll={handleClearAll}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              id="standards-search"
+              placeholder="Search standards..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <Select value={complianceStatusFilter} onValueChange={setComplianceStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Compliance status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="compliant">Compliant</SelectItem>
+              <SelectItem value="due">Due</SelectItem>
+              <SelectItem value="incomplete">Incomplete</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={coverageFilter} onValueChange={setCoverageFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Coverage level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Coverage</SelectItem>
+              <SelectItem value="none">No Coverage</SelectItem>
+              <SelectItem value="partial">Partial Coverage</SelectItem>
+              <SelectItem value="complete">Complete Coverage</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </FilterBar>
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Sort by:</span>
+        <SortableHeader
+          label="Clause"
+          field="clause"
+          currentField={sortConfig.field}
+          currentDirection={sortConfig.direction}
+          onSort={handleSort}
+        />
+        <SortableHeader
+          label="Title"
+          field="title"
+          currentField={sortConfig.field}
+          currentDirection={sortConfig.direction}
+          onSort={handleSort}
         />
       </div>
 
       <div className="grid gap-4">
-        {filteredStandards.map((standard) => {
+        {sortedData.map((standard) => {
           // TODO: Backend should include mapping counts in standards list response
           // Alternative: Call useStandardMappings(standard.id) for each standard
           // Note: This would make N+1 API calls, better to enhance backend
@@ -150,16 +330,22 @@ export function StandardsView() {
         })}
       </div>
 
-      {filteredStandards.length === 0 && (
+      {sortedData.length === 0 && (
         <Card className="p-12">
           <div className="text-center text-muted-foreground">
-            <p className="text-sm">No standards found matching "{searchQuery}"</p>
-            <button
-              onClick={() => setSearchQuery('')}
-              className="text-primary text-sm mt-2 hover:underline"
-            >
-              Clear search
-            </button>
+            {activeFilters.length > 0 || searchQuery ? (
+              <>
+                <p className="text-sm mb-2">No standards found matching your filters</p>
+                <button
+                  onClick={handleClearAll}
+                  className="text-primary text-sm hover:underline"
+                >
+                  Clear all filters
+                </button>
+              </>
+            ) : (
+              <p className="text-sm">No standards available</p>
+            )}
           </div>
         </Card>
       )}
