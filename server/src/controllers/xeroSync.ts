@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { createAuditLog } from '../middleware/audit';
 import {
   getAuthorizationUrl,
   exchangeCodeForTokens,
@@ -212,6 +213,23 @@ export async function triggerSync(req: Request, res: Response): Promise<void> {
     // Start sync (async operation)
     const result = await syncEmployees(userId, 'manual');
 
+    // Log audit trail
+    await createAuditLog(
+      userId,
+      'sync',
+      'XeroSync',
+      `sync-${new Date().toISOString()}`,
+      {
+        syncType: 'manual',
+        employeesCreated: result.employeesCreated,
+        employeesUpdated: result.employeesUpdated,
+        employeesFailed: result.employeesFailed,
+        success: result.success,
+      },
+      req.ip || req.socket.remoteAddress,
+      req.headers['user-agent']
+    );
+
     if (result.success) {
       res.status(200).json({
         message: 'Sync completed successfully',
@@ -285,6 +303,7 @@ export async function getSyncHistoryHandler(req: Request, res: Response): Promis
  */
 export async function disconnectXeroHandler(req: Request, res: Response): Promise<void> {
   try {
+    const userId = req.user?.userId;
     const connection = await getActiveConnection();
 
     if (!connection) {
@@ -299,6 +318,19 @@ export async function disconnectXeroHandler(req: Request, res: Response): Promis
     }
 
     await disconnectXero(connection.id);
+
+    // Log audit trail
+    if (userId) {
+      await createAuditLog(
+        userId,
+        'disconnect',
+        'XeroConnection',
+        connection.id,
+        { tenantId: connection.tenantId, tenantName: connection.tenantName },
+        req.ip || req.socket.remoteAddress,
+        req.headers['user-agent']
+      );
+    }
 
     res.status(200).json({
       message: 'Successfully disconnected from Xero',

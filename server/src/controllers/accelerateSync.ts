@@ -5,6 +5,7 @@
 
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { createAuditLog } from '../middleware/audit';
 import { accelerateClient } from '../services/accelerate';
 import { syncTrainers, syncStudents, syncEnrollments, syncAll } from '../services/accelerateSync';
 import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
@@ -69,11 +70,26 @@ export async function triggerSync(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const finalSyncType = syncType || 'full';
+
+    // Log audit trail for sync initiation
+    if (userId) {
+      await createAuditLog(
+        userId,
+        'sync',
+        'AccelerateSync',
+        `sync-${new Date().toISOString()}`,
+        { syncType: finalSyncType, action: 'sync_initiated' },
+        req.ip || req.socket.remoteAddress,
+        req.headers['user-agent']
+      );
+    }
+
     // Trigger sync asynchronously
     const syncPromise = (async () => {
       try {
         let results;
-        switch (syncType || 'full') {
+        switch (finalSyncType) {
           case 'trainers':
             results = [await syncTrainers(userId)];
             break;
@@ -98,7 +114,7 @@ export async function triggerSync(req: Request, res: Response): Promise<void> {
     // Return immediately with accepted status
     res.status(202).json({
       message: 'Sync started',
-      syncType: syncType || 'full',
+      syncType: finalSyncType,
       timestamp: new Date().toISOString(),
     });
 
