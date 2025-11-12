@@ -1,7 +1,7 @@
-import { House, FileText, GraduationCap, Users, ChartBar, ChatCircle, Package, Warning, UserPlus, UploadSimple, CalendarBlank } from '@phosphor-icons/react'
+import { House, FileText, GraduationCap, Users, ChartBar, ChatCircle, Package, Warning, UserPlus, UploadSimple, CalendarBlank, ClipboardText } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
-export type NavItem = 'overview' | 'standards' | 'policies' | 'training' | 'staff' | 'feedback' | 'resources' | 'complaints' | 'onboarding' | 'files' | 'jobs'
+export type NavItem = 'overview' | 'standards' | 'policies' | 'training' | 'staff' | 'feedback' | 'resources' | 'complaints' | 'onboarding' | 'files' | 'jobs' | 'audit-logs'
 
 interface NavigationProps {
   activeView: NavItem
@@ -19,6 +19,7 @@ const navItems = [
   { id: 'feedback' as const, label: 'Feedback', icon: ChatCircle },
   { id: 'complaints' as const, label: 'Complaints', icon: Warning },
   { id: 'jobs' as const, label: 'Jobs', icon: CalendarBlank },
+  { id: 'audit-logs' as const, label: 'Audit Logs', icon: ClipboardText },
   { id: 'files' as const, label: 'Files', icon: UploadSimple }
 ]
 

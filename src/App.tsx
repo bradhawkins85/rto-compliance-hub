@@ -9,6 +9,7 @@ import { FeedbackView } from '@/components/views/FeedbackView'
 import { ResourcesView } from '@/components/views/ResourcesView'
 import { ComplaintsView } from '@/components/views/ComplaintsView'
 import { OnboardingView } from '@/components/views/OnboardingView'
+import { AuditLogsView } from '@/components/views/AuditLogsView'
 import { FileUploadDemo } from '@/components/views/FileUploadDemo'
 import JobsView from '@/components/views/JobsView'
 import { Toaster } from '@/components/ui/sonner'
@@ -31,6 +32,7 @@ function App() {
         {activeView === 'feedback' && <FeedbackView />}
         {activeView === 'complaints' && <ComplaintsView />}
         {activeView === 'jobs' && <JobsView />}
+        {activeView === 'audit-logs' && <AuditLogsView />}
         {activeView === 'files' && <FileUploadDemo />}
       </main>
 

@@ -21,6 +21,7 @@ import complaintsRoutes from './routes/complaints';
 import onboardingRoutes from './routes/onboarding';
 import reportsRoutes from './routes/reports';
 import jobsRoutes from './routes/jobs';
+import auditLogsRoutes from './routes/auditLogs';
 import { apiRateLimiter } from './middleware/rateLimit';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 // Import job worker to start it
@@ -97,9 +98,7 @@ app.use('/api/v1/complaints', complaintsRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/jobs', jobsRoutes);
-app.use('/api/v1/complaints', complaintsRoutes);
-app.use('/api/v1/onboarding', onboardingRoutes);
-app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/audit-logs', auditLogsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
