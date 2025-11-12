@@ -1,0 +1,52 @@
+{
+  "submissionID": "employer-987654321",
+  "formID": "241234567891",
+  "form_title": "Employer Feedback Survey",
+  "ip": "192.168.1.2",
+  "created_at": "2025-11-09 11:35:00",
+  "status": "ACTIVE",
+  "answers": {
+    "1": {
+      "name": "formType",
+      "answer": "employer",
+      "text": "Employer Feedback",
+      "type": "control_radio"
+    },
+    "2": {
+      "name": "companyName",
+      "answer": "ABC Construction Pty Ltd",
+      "text": "Company Name",
+      "type": "control_textbox"
+    },
+    "3": {
+      "name": "contactName",
+      "answer": "Michael Johnson",
+      "text": "Contact Person",
+      "type": "control_textbox"
+    },
+    "4": {
+      "name": "rating",
+      "answer": "4",
+      "text": "Overall Satisfaction (1-5)",
+      "type": "control_rating"
+    },
+    "5": {
+      "name": "comments",
+      "answer": "Our employees who completed the training have shown significant improvement in safety practices and operational efficiency.",
+      "text": "Feedback on Training Outcomes",
+      "type": "control_textarea"
+    },
+    "6": {
+      "name": "wouldRecommend",
+      "answer": "Yes",
+      "text": "Would you recommend our training?",
+      "type": "control_radio"
+    },
+    "7": {
+      "name": "courseName",
+      "answer": "TLI31021 Certificate III in Crane Operations",
+      "text": "Course Completed",
+      "type": "control_textbox"
+    }
+  }
+}

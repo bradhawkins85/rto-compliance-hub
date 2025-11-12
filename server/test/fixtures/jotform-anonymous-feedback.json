@@ -1,0 +1,46 @@
+{
+  "submissionID": "anonymous-111222333",
+  "formID": "241234567892",
+  "form_title": "Anonymous Learner Feedback",
+  "ip": "192.168.1.3",
+  "created_at": "2025-11-09 11:40:00",
+  "status": "ACTIVE",
+  "answers": {
+    "1": {
+      "name": "formType",
+      "answer": "learner",
+      "text": "Learner Feedback",
+      "type": "control_radio"
+    },
+    "2": {
+      "name": "courseName",
+      "answer": "TLILIC0005 Licence to operate a boom-type elevating work platform",
+      "text": "Course Name",
+      "type": "control_textbox"
+    },
+    "3": {
+      "name": "rating",
+      "answer": "3",
+      "text": "Overall Rating (1-5)",
+      "type": "control_rating"
+    },
+    "4": {
+      "name": "comments",
+      "answer": "The course content was good but I felt we needed more practical time with the equipment.",
+      "text": "Comments or Feedback",
+      "type": "control_textarea"
+    },
+    "5": {
+      "name": "anonymous",
+      "answer": "yes",
+      "text": "Submit Anonymously?",
+      "type": "control_radio"
+    },
+    "6": {
+      "name": "improvementAreas",
+      "answer": "More hands-on practice, better training materials",
+      "text": "Areas for Improvement",
+      "type": "control_textarea"
+    }
+  }
+}

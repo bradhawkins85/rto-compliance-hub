@@ -10,7 +10,17 @@ import trainingProductsRoutes from './routes/trainingProducts';
 import sopsRoutes from './routes/sops';
 import pdRoutes from './routes/pd';
 import credentialsRoutes from './routes/credentials';
+import xeroSyncRoutes from './routes/xeroSync';
+import webhooksRoutes from './routes/webhooks';
+import accelerateSyncRoutes from './routes/accelerateSync';
+import googleDriveRoutes from './routes/googleDrive';
+import feedbackRoutes from './routes/feedback';
+import emailRoutes from './routes/email';
+import assetsRoutes from './routes/assets';
+import complaintsRoutes from './routes/complaints';
+import onboardingRoutes from './routes/onboarding';
 import { apiRateLimiter } from './middleware/rateLimit';
+import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
 // Load environment variables
 const PORT = process.env.APP_PORT || 3000;
@@ -72,6 +82,15 @@ app.use('/api/v1/training-products', trainingProductsRoutes);
 app.use('/api/v1/sops', sopsRoutes);
 app.use('/api/v1/pd', pdRoutes);
 app.use('/api/v1/credentials', credentialsRoutes);
+app.use('/api/v1/sync/xero', xeroSyncRoutes);
+app.use('/api/v1/webhooks', webhooksRoutes);
+app.use('/api/v1/sync/accelerate', accelerateSyncRoutes);
+app.use('/api/v1/files/google-drive', googleDriveRoutes);
+app.use('/api/v1/feedback', feedbackRoutes);
+app.use('/api/v1/email', emailRoutes);
+app.use('/api/v1/assets', assetsRoutes);
+app.use('/api/v1/complaints', complaintsRoutes);
+app.use('/api/v1/onboarding', onboardingRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -102,6 +121,22 @@ app.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  
+  // Initialize scheduled jobs
+  initializeScheduler();
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  stopAllScheduledJobs();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  stopAllScheduledJobs();
+  process.exit(0);
 });
 
 export default app;

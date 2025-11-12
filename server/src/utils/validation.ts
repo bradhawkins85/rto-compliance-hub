@@ -48,6 +48,7 @@ export const listUsersQuerySchema = paginationSchema.extend({
   role: z.string().optional(),
   status: z.enum(['Active', 'Inactive']).optional(),
   q: z.string().optional(),
+  includeOnboarding: z.string().optional(),
   sort: sortSchema,
   fields: fieldsSchema,
 });
@@ -240,6 +241,142 @@ export const listCredentialsQuerySchema = paginationSchema.extend({
   status: z.enum(['Active', 'Expired', 'Revoked']).optional(),
   expiresBefore: z.string().datetime().optional(),
   type: z.enum(['Certificate', 'License', 'Qualification']).optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
+ * Feedback validation schemas
+ */
+
+export const createFeedbackSchema = z.object({
+  type: z.enum(['learner', 'employer', 'industry']),
+  trainingProductId: uuidSchema.optional(),
+  trainerId: z.string().optional(),
+  courseId: z.string().optional(),
+  rating: z.coerce.number().min(0).max(5).optional(),
+  comments: z.string().optional(),
+  anonymous: z.coerce.boolean().optional(),
+});
+
+export const updateFeedbackSchema = z.object({
+  rating: z.coerce.number().min(0).max(5).optional(),
+  comments: z.string().optional(),
+  sentiment: z.coerce.number().min(-1).max(1).optional(),
+  themes: z.array(z.string()).optional(),
+});
+
+export const listFeedbackQuerySchema = paginationSchema.extend({
+  type: z.enum(['learner', 'employer', 'industry']).optional(),
+  trainingProductId: uuidSchema.optional(),
+  trainerId: z.string().optional(),
+  courseId: z.string().optional(),
+  anonymous: z.string().optional(), // Will be coerced to boolean
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  minRating: z.string().optional(), // Will be parsed as float
+  maxRating: z.string().optional(), // Will be parsed as float
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
+ * Asset & Resource Management validation schemas
+ */
+
+export const createAssetSchema = z.object({
+  type: z.string().min(1, 'Type is required').max(100),
+  name: z.string().min(1, 'Name is required').max(500),
+  serialNumber: z.string().max(255).optional(),
+  location: z.string().max(500).optional(),
+  status: z.enum(['Available', 'Assigned', 'Servicing', 'Retired']).optional(),
+  purchaseDate: z.string().datetime().optional(),
+  purchaseCost: z.coerce.number().min(0).optional(),
+});
+
+export const updateAssetSchema = z.object({
+  type: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(500).optional(),
+  serialNumber: z.string().max(255).optional(),
+  location: z.string().max(500).optional(),
+  status: z.enum(['Available', 'Assigned', 'Servicing', 'Retired']).optional(),
+  purchaseDate: z.string().datetime().optional(),
+  purchaseCost: z.coerce.number().min(0).optional(),
+  nextServiceAt: z.string().datetime().optional(),
+});
+
+export const transitionAssetStateSchema = z.object({
+  state: z.enum(['Available', 'Assigned', 'Servicing', 'Retired'], {
+    required_error: 'State is required',
+  }),
+  notes: z.string().optional(),
+});
+
+export const logAssetServiceSchema = z.object({
+  serviceDate: z.string().datetime(),
+  servicedBy: z.string().max(255).optional(),
+  notes: z.string().optional(),
+  cost: z.coerce.number().min(0).optional(),
+  documents: z.array(z.string().url()).optional(),
+});
+
+export const listAssetsQuerySchema = paginationSchema.extend({
+  type: z.string().optional(),
+  status: z.enum(['Available', 'Assigned', 'Servicing', 'Retired']).optional(),
+  location: z.string().optional(),
+  serviceDueBefore: z.string().datetime().optional(),
+  q: z.string().optional(),
+  sort: sortSchema,
+  fields: fieldsSchema,
+});
+
+/**
+ * Complaints & Appeals validation schemas
+ */
+
+export const createComplaintSchema = z.object({
+  source: z.enum(['Student', 'Staff', 'Employer', 'External'], {
+    required_error: 'Source is required',
+  }),
+  description: z.string().min(1, 'Description is required'),
+  studentId: z.string().optional(),
+  trainerId: uuidSchema.optional(),
+  trainingProductId: uuidSchema.optional(),
+  courseId: z.string().optional(),
+});
+
+export const updateComplaintSchema = z.object({
+  description: z.string().min(1).optional(),
+  status: z.enum(['New', 'InReview', 'Actioned', 'Closed']).optional(),
+  trainerId: uuidSchema.optional().nullable(),
+  trainingProductId: uuidSchema.optional().nullable(),
+  courseId: z.string().optional().nullable(),
+  rootCause: z.string().optional(),
+  correctiveAction: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const closeComplaintSchema = z.object({
+  rootCause: z.string().min(1, 'Root cause is required for closure'),
+  correctiveAction: z.string().min(1, 'Corrective action is required for closure'),
+  notes: z.string().optional(),
+});
+
+export const addComplaintNoteSchema = z.object({
+  notes: z.string().min(1, 'Note content is required'),
+});
+
+export const listComplaintsQuerySchema = paginationSchema.extend({
+  status: z.enum(['New', 'InReview', 'Actioned', 'Closed']).optional(),
+  source: z.enum(['Student', 'Staff', 'Employer', 'External']).optional(),
+  trainerId: uuidSchema.optional(),
+  trainingProductId: uuidSchema.optional(),
+  studentId: z.string().optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  slaBreach: z.string().optional(), // 'true' or 'false'
   q: z.string().optional(),
   sort: sortSchema,
   fields: fieldsSchema,
