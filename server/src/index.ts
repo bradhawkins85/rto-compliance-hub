@@ -23,8 +23,11 @@ import onboardingRoutes from './routes/onboarding';
 import reportsRoutes from './routes/reports';
 import jobsRoutes from './routes/jobs';
 import auditLogsRoutes from './routes/auditLogs';
+import monitoringRoutes from './routes/monitoring';
 import { apiRateLimiter } from './middleware/rateLimit';
+import { monitoringMiddleware, errorTrackingMiddleware } from './middleware/monitoring';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
+import { getMetrics } from './controllers/monitoring';
 // Import job worker to start it
 import './services/jobWorker';
 
@@ -70,8 +73,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Cookie parser
 app.use(cookieParser());
 
+// Monitoring middleware (before routes to track all requests)
+app.use(monitoringMiddleware);
+
 // Apply rate limiting to all API routes
 app.use('/api', apiRateLimiter);
+
+// Prometheus metrics endpoint (no authentication required for scraping)
+app.get('/metrics', getMetrics);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
@@ -116,6 +125,7 @@ app.use('/api/v1/onboarding', onboardingRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/jobs', jobsRoutes);
 app.use('/api/v1/audit-logs', auditLogsRoutes);
+app.use('/api/v1/monitoring', monitoringRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -126,6 +136,9 @@ app.use((_req: Request, res: Response) => {
     detail: 'The requested resource was not found',
   });
 });
+
+// Error tracking middleware
+app.use(errorTrackingMiddleware);
 
 // Error handler
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
