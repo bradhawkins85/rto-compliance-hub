@@ -1,0 +1,136 @@
+# Alert rules for RTO Compliance Hub
+groups:
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: (rate(http_errors_total[5m]) / rate(http_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/high-error-rate"
+
+      # Slow response time alert
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "Slow API response time"
+          description: "P95 response time is {{ $value }}s (threshold: 2s)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/slow-response-time"
+
+      # Application down alert
+      - alert: ApplicationDown
+        expr: up{job="rto-app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Application is down"
+          description: "RTO Compliance Hub application has been down for more than 2 minutes"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/application-down"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # High database connection pool usage
+      - alert: HighDatabaseConnections
+        expr: (database_connections_active / 100) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database connection pool usage high"
+          description: "Database connection pool is at {{ $value }}% (threshold: 80%)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/high-db-connections"
+
+      # Database down
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/database-down"
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (process_memory_usage_bytes / process.resident_memory_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is at {{ $value }}% (threshold: 90%)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/high-memory"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: process_cpu_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is at {{ $value }}% (threshold: 80%)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/high-cpu"
+
+      # Low disk space
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Available disk space is {{ $value }}% (threshold: 20%)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/low-disk-space"
+
+  - name: background_jobs_alerts
+    interval: 30s
+    rules:
+      # High job failure rate
+      - alert: HighJobFailureRate
+        expr: (background_jobs_failed_total / background_jobs_total) * 100 > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: background-jobs
+        annotations:
+          summary: "High background job failure rate"
+          description: "Job failure rate is {{ $value }}% (threshold: 10%)"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/high-job-failures"
+
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 2 minutes"
+          runbook_url: "https://docs.rto-compliance-hub.com/runbooks/redis-down"
