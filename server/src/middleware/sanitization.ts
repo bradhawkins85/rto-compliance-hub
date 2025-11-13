@@ -8,30 +8,34 @@ import path from 'path';
 
 /**
  * XSS Prevention - Sanitize string inputs to remove potentially malicious scripts
+ * Note: This is a secondary layer. Primary defense is proper output encoding in the frontend.
  */
 export function sanitizeString(input: string): string {
   if (typeof input !== 'string') {
     return input;
   }
   
-  return input
-    // Remove script tags and their content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    // Remove event handlers (onclick, onerror, etc.)
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
-    // Remove javascript: protocol
-    .replace(/javascript:/gi, '')
-    // Remove data: protocol for images (can be used for XSS)
-    .replace(/<img[^>]+src\s*=\s*["']data:[^"']*["']/gi, '')
-    // Remove iframe tags
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    // HTML encode special characters
+  // First, HTML encode all special characters (primary defense)
+  let sanitized = input
+    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
+  
+  // Additional protections for known attack vectors
+  // Remove javascript: protocol (multiple variations)
+  sanitized = sanitized.replace(/javascript\s*:/gi, '');
+  sanitized = sanitized.replace(/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/gi, '');
+  
+  // Remove vbscript: protocol
+  sanitized = sanitized.replace(/vbscript\s*:/gi, '');
+  
+  // Remove data: protocol (can be used for XSS)
+  sanitized = sanitized.replace(/data\s*:/gi, '');
+  
+  return sanitized;
 }
 
 /**
@@ -214,38 +218,54 @@ export function pathTraversalProtection(req: Request, res: Response, next: NextF
 
 /**
  * Validate that input doesn't contain dangerous patterns
+ * Note: Uses non-backtracking patterns to prevent ReDoS attacks
  */
 export function validateNoInjection(input: string): boolean {
   if (typeof input !== 'string') {
     return true;
   }
   
-  // Check for SQL injection patterns
-  const sqlPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)/gi,
-    /(\bUNION\b.*\bSELECT\b)/gi,
-    /[';]+\s*(OR|AND)\s*[';'0-9=\s]+/gi, // Detects patterns like ' OR '1'='1'
-  ];
+  // Limit input length to prevent ReDoS
+  if (input.length > 10000) {
+    return false;
+  }
   
-  // Check for command injection patterns
-  const cmdPatterns = [
-    /[;&|`$(){}[\]]/,
-    /(\n|\r)/,
-  ];
-  
-  // Check for XSS patterns
-  const xssPatterns = [
-    /<script/gi,
-    /javascript:/gi,
-    /on\w+\s*=/gi,
-  ];
-  
-  const allPatterns = [...sqlPatterns, ...cmdPatterns, ...xssPatterns];
-  
-  for (const pattern of allPatterns) {
-    if (pattern.test(input)) {
+  // Check for SQL injection patterns (non-backtracking)
+  const sqlKeywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'EXEC', 'EXECUTE', 'UNION'];
+  for (const keyword of sqlKeywords) {
+    if (new RegExp('\\b' + keyword + '\\b', 'i').test(input)) {
       return false;
     }
+  }
+  
+  // Check for SQL injection with quotes and boolean logic
+  // Matches patterns like ' OR '1'='1' or " OR "1"="1"
+  if (/['"][\s]*(OR|AND)[\s]*['"]/i.test(input)) {
+    return false;
+  }
+  
+  // Check for command injection characters
+  if (/[;&|`$(){}[\]]/.test(input)) {
+    return false;
+  }
+  
+  // Check for newlines (command injection)
+  if (/[\n\r]/.test(input)) {
+    return false;
+  }
+  
+  // Check for XSS patterns (non-backtracking)
+  if (/<script/i.test(input)) {
+    return false;
+  }
+  
+  if (/javascript:/i.test(input)) {
+    return false;
+  }
+  
+  // Check for event handlers (simpler pattern to avoid ReDoS)
+  if (/\bon\w+\s*=/i.test(input)) {
+    return false;
   }
   
   return true;

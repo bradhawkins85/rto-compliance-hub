@@ -34,15 +34,19 @@ describe('Sanitization Middleware', () => {
     it('should sanitize script tags', () => {
       const input = '<script>alert("XSS")</script>Hello';
       const result = sanitizeString(input);
+      // After encoding, < becomes &lt; and > becomes &gt;
+      expect(result).toContain('&lt;');
+      expect(result).toContain('&gt;');
       expect(result).not.toContain('<script>');
-      expect(result).not.toContain('alert');
     });
 
     it('should sanitize event handlers', () => {
       const input = '<img src="x" onerror="alert(1)">';
       const result = sanitizeString(input);
-      expect(result).not.toContain('onerror');
-      expect(result).not.toContain('alert');
+      // All HTML is encoded
+      expect(result).toContain('&lt;');
+      expect(result).toContain('&gt;');
+      expect(result).not.toContain('<img');
     });
 
     it('should sanitize javascript protocol', () => {
@@ -62,6 +66,8 @@ describe('Sanitization Middleware', () => {
     it('should sanitize iframe tags', () => {
       const input = '<iframe src="evil.com"></iframe>';
       const result = sanitizeString(input);
+      // All HTML is encoded
+      expect(result).toContain('&lt;');
       expect(result).not.toContain('<iframe>');
     });
   });
@@ -180,6 +186,8 @@ describe('Sanitization Middleware', () => {
     it('should sanitize request body', () => {
       mockReq.body = { name: '<script>alert(1)</script>John' };
       xssProtection(mockReq as Request, mockRes as Response, mockNext);
+      // HTML should be encoded
+      expect(mockReq.body.name).toContain('&lt;');
       expect(mockReq.body.name).not.toContain('<script>');
       expect(mockNext).toHaveBeenCalled();
     });
@@ -187,13 +195,16 @@ describe('Sanitization Middleware', () => {
     it('should sanitize query parameters', () => {
       mockReq.query = { search: '<img src=x onerror=alert(1)>' };
       xssProtection(mockReq as Request, mockRes as Response, mockNext);
-      expect(mockReq.query.search).not.toContain('onerror');
+      // HTML should be encoded
+      expect(mockReq.query.search).toContain('&lt;');
+      expect(mockReq.query.search).not.toContain('<img');
       expect(mockNext).toHaveBeenCalled();
     });
 
     it('should sanitize URL parameters', () => {
       mockReq.params = { id: '<script>test</script>' };
       xssProtection(mockReq as Request, mockRes as Response, mockNext);
+      expect(mockReq.params.id).toContain('&lt;');
       expect(mockReq.params.id).not.toContain('<script>');
       expect(mockNext).toHaveBeenCalled();
     });
@@ -208,8 +219,11 @@ describe('Sanitization Middleware', () => {
         }
       };
       xssProtection(mockReq as Request, mockRes as Response, mockNext);
+      // All HTML should be encoded
+      expect(mockReq.body.user.name).toContain('&lt;');
       expect(mockReq.body.user.name).not.toContain('<script>');
-      expect(mockReq.body.user.address.street).not.toContain('onerror');
+      expect(mockReq.body.user.address.street).toContain('&lt;');
+      expect(mockReq.body.user.address.street).not.toContain('<img');
       expect(mockNext).toHaveBeenCalled();
     });
   });
