@@ -30,7 +30,14 @@ export default defineConfig({
       statements: 80,
     },
     include: ['tests/**/*.test.{ts,tsx}'],
-    exclude: ['node_modules', 'dist', 'server/dist', '.prisma'],
+    exclude: [
+      'node_modules',
+      'dist',
+      'server/dist',
+      '.prisma',
+      'tests/e2e/**', // Exclude E2E tests - they run with Playwright
+      'tests/integration/**', // Exclude integration tests for now
+    ],
   },
   resolve: {
     alias: {

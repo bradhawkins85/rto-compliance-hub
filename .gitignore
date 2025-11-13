@@ -47,3 +47,11 @@ pids
 .prisma/
 
 /src/generated/prisma
+
+# Testing
+coverage
+.nyc_output
+test-results
+playwright-report
+*.lcov
+.vitest
