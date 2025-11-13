@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import {
   listJobs,
@@ -19,7 +19,7 @@ import {
 const router = Router();
 
 // All job endpoints require authentication and SystemAdmin role
-router.use(requireAuth);
+router.use(authenticate);
 router.use(requireRole(['SystemAdmin']));
 
 // List all jobs

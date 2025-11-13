@@ -2,6 +2,10 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yaml';
+import fs from 'fs';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
@@ -99,6 +103,43 @@ app.get('/metrics', getMetrics);
 // CSRF token endpoint - generates and returns CSRF token
 app.get('/api/v1/csrf-token', csrfTokenGenerator, getCsrfToken);
 
+// Load OpenAPI specification
+const openApiPath = path.join(__dirname, '../../openapi.yaml');
+let swaggerDocument: any = {};
+try {
+  const fileContents = fs.readFileSync(openApiPath, 'utf8');
+  swaggerDocument = YAML.parse(fileContents);
+  console.log('✅ OpenAPI specification loaded successfully');
+} catch (error) {
+  console.error('⚠️  Failed to load OpenAPI specification:', error);
+}
+
+// Swagger UI options
+const swaggerOptions = {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'RTO Compliance Hub API Documentation',
+  customfavIcon: '/favicon.ico'
+};
+
+// Serve OpenAPI/Swagger documentation at /api/docs
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+
+// Serve raw OpenAPI spec as JSON
+app.get('/api/openapi.json', (_req: Request, res: Response) => {
+  res.json(swaggerDocument);
+});
+
+// Serve raw OpenAPI spec as YAML
+app.get('/api/openapi.yaml', (_req: Request, res: Response) => {
+  res.type('text/yaml');
+  try {
+    const fileContents = fs.readFileSync(openApiPath, 'utf8');
+    res.send(fileContents);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load OpenAPI specification' });
+  }
+});
+
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
   const health = {
@@ -176,6 +217,7 @@ const server = app.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
   
   // Initialize scheduled jobs
   initializeScheduler();

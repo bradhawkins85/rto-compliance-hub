@@ -1,0 +1,716 @@
+{
+  "info": {
+    "name": "RTO Compliance Hub API",
+    "description": "Complete API collection for RTO Compliance Hub with authentication, users, policies, training, feedback, and integrations.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "policy_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    pm.collectionVariables.set('user_id', response.user.id);",
+                  "    pm.test('Token saved', () => {",
+                  "        pm.expect(response.access_token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@rto.com.au\",\n  \"password\": \"AdminPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login with email and password to obtain JWT access token"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Refresh access token using refresh token cookie"
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"OldPassword123!\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"},
+                {"key": "department", "value": "Training", "disabled": true},
+                {"key": "role", "value": "Trainer", "disabled": true},
+                {"key": "status", "value": "Active", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@rto.com.au\",\n  \"password\": \"SecurePass123!\",\n  \"department\": \"Training\",\n  \"roles\": [\"Trainer\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"department\": \"Management\",\n  \"roles\": [\"Trainer\", \"Manager\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get User PD Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/{{user_id}}/pd",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "{{user_id}}", "pd"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Policies",
+      "item": [
+        {
+          "name": "List Policies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"},
+                {"key": "status", "value": "Published", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Policy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('policy_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Student Welfare Policy\",\n  \"version\": \"2.1\",\n  \"fileUrl\": \"https://drive.google.com/file/d/abc123/view\",\n  \"reviewDate\": \"2026-11-13\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies"]
+            }
+          }
+        },
+        {
+          "name": "Get Policy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies/{{policy_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies", "{{policy_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Policy",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewDate\": \"2027-11-13\",\n  \"status\": \"Published\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies/{{policy_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies", "{{policy_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Map Policy to Standards",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"standardIds\": [\"STD-1\", \"STD-2\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies/{{policy_id}}/map",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies", "{{policy_id}}", "map"]
+            }
+          }
+        },
+        {
+          "name": "Publish Policy",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies/{{policy_id}}/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies", "{{policy_id}}", "publish"]
+            }
+          }
+        },
+        {
+          "name": "Export Policies (CSV)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/policies/export?format=csv",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "policies", "export"],
+              "query": [
+                {"key": "format", "value": "csv"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Standards",
+      "item": [
+        {
+          "name": "List Standards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/standards",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "standards"]
+            }
+          }
+        },
+        {
+          "name": "Get Standard Mappings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/standards/STD-1/mappings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "standards", "STD-1", "mappings"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Training Products",
+      "item": [
+        {
+          "name": "List Training Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/training-products?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "training-products"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Training Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"TLI41221\",\n  \"name\": \"Certificate IV in Transport and Logistics\",\n  \"assessmentStrategyUrl\": \"https://drive.google.com/file/d/xyz789/view\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/training-products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "training-products"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Professional Development",
+      "item": [
+        {
+          "name": "List PD Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/pd?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "pd"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"},
+                {"key": "status", "value": "Due", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create PD Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"title\": \"Attend TAE Training\",\n  \"hours\": 8,\n  \"dueAt\": \"2025-12-31T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/pd",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "pd"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feedback",
+      "item": [
+        {
+          "name": "List Feedback",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"},
+                {"key": "type", "value": "learner", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Feedback Insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback/insights",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback", "insights"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assets",
+      "item": [
+        {
+          "name": "List Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/assets?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "assets"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Asset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"Crane\",\n  \"name\": \"Mobile Crane #1\",\n  \"location\": \"Training Yard A\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/assets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "assets"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complaints",
+      "item": [
+        {
+          "name": "List Complaints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/complaints?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "complaints"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Complaint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"Student\",\n  \"description\": \"Issue with assessment marking\",\n  \"studentId\": \"student_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/complaints",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "complaints"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integrations",
+      "item": [
+        {
+          "name": "Trigger Xero Sync",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync/xero",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync", "xero"]
+            }
+          }
+        },
+        {
+          "name": "Trigger Accelerate Sync",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync/accelerate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync", "accelerate"]
+            }
+          }
+        },
+        {
+          "name": "Upload to Google Drive",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "folderId",
+                  "value": "your_folder_id",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/files/google-drive/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "files", "google-drive", "upload"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Get Metrics",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["metrics"]
+            }
+          }
+        },
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Get Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit-logs?page=1&perPage=30",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "audit-logs"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "perPage", "value": "30"}
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
