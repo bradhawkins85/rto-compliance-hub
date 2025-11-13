@@ -286,6 +286,40 @@ export interface FeedbackInsightsParams {
   dateTo?: string;
 }
 
+export interface AICostStats {
+  totalTokens: number;
+  estimatedCost: number;
+  timestamp: string;
+  monthlyLimit: number;
+  percentUsed: number;
+  status: 'ok' | 'warning' | 'limit_reached';
+}
+
+export interface FeedbackTrend {
+  current: {
+    average: number;
+    count: number;
+    period: string;
+  };
+  previous: {
+    average: number;
+    count: number;
+    period: string;
+  };
+  change: number;
+  direction: 'improving' | 'declining' | 'stable';
+  alert?: string;
+}
+
+export interface EmergingThemesResponse {
+  period: string;
+  themes: Array<{
+    theme: string;
+    count: number;
+    change: number;
+  }>;
+}
+
 // Asset types
 export interface Asset {
   id: string;
