@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import OpenAI from 'openai';
 
 const prisma = new PrismaClient();
 
@@ -12,8 +13,101 @@ const prisma = new PrismaClient();
 interface FeedbackAnalysis {
   sentiment: number; // -1 to 1
   themes: string[];
+  confidence?: number; // 0 to 1
+  aspects?: {
+    trainer?: number;
+    content?: number;
+    facilities?: number;
+  };
 }
 
+interface CostTracking {
+  totalTokens: number;
+  estimatedCost: number;
+  timestamp: Date;
+}
+
+// Cost tracking state
+let monthlyCost = 0;
+let monthlyTokens = 0;
+let lastResetDate = new Date();
+
+// Cost per 1M tokens for GPT-4o-mini (as of 2024)
+const COST_PER_MILLION_INPUT_TOKENS = 0.15;
+const COST_PER_MILLION_OUTPUT_TOKENS = 0.60;
+
+/**
+ * Get OpenAI client instance
+ */
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey || apiKey === 'your-api-key-here' || apiKey === '') {
+    return null;
+  }
+  
+  return new OpenAI({ apiKey });
+}
+
+/**
+ * Check if we've exceeded cost limits
+ */
+function checkCostLimits(): boolean {
+  resetIfNewMonth();
+  
+  const monthlyLimit = parseFloat(process.env.AI_COST_LIMIT_MONTHLY || '100');
+  const alertThreshold = parseFloat(process.env.AI_COST_ALERT_THRESHOLD || '80');
+  
+  if (monthlyCost >= monthlyLimit) {
+    console.error(`❌ Monthly AI cost limit reached: $${monthlyCost.toFixed(2)} / $${monthlyLimit}`);
+    return false;
+  }
+  
+  if (monthlyCost >= monthlyLimit * (alertThreshold / 100)) {
+    console.warn(`⚠️  AI cost alert: $${monthlyCost.toFixed(2)} / $${monthlyLimit} (${alertThreshold}% threshold)`);
+  }
+  
+  return true;
+}
+
+/**
+ * Reset cost tracking if new month
+ */
+function resetIfNewMonth(): void {
+  const now = new Date();
+  if (now.getMonth() !== lastResetDate.getMonth() || now.getFullYear() !== lastResetDate.getFullYear()) {
+    console.log(`🔄 Resetting monthly AI cost tracking. Previous: $${monthlyCost.toFixed(4)} (${monthlyTokens} tokens)`);
+    monthlyCost = 0;
+    monthlyTokens = 0;
+    lastResetDate = now;
+  }
+}
+
+/**
+ * Track API usage cost
+ */
+function trackCost(inputTokens: number, outputTokens: number): void {
+  const inputCost = (inputTokens / 1_000_000) * COST_PER_MILLION_INPUT_TOKENS;
+  const outputCost = (outputTokens / 1_000_000) * COST_PER_MILLION_OUTPUT_TOKENS;
+  const totalCost = inputCost + outputCost;
+  
+  monthlyCost += totalCost;
+  monthlyTokens += inputTokens + outputTokens;
+  
+  console.log(`💰 API cost: $${totalCost.toFixed(6)} (${inputTokens + outputTokens} tokens) | Monthly total: $${monthlyCost.toFixed(4)}`);
+}
+
+/**
+ * Get current cost tracking statistics
+ */
+export function getCostStats(): CostTracking {
+  resetIfNewMonth();
+  return {
+    totalTokens: monthlyTokens,
+    estimatedCost: monthlyCost,
+    timestamp: new Date(),
+  };
+}
 /**
  * Analyze feedback sentiment and extract themes
  */
@@ -27,15 +121,22 @@ export async function analyzeFeedback(
       return {
         sentiment: 0,
         themes: [],
+        confidence: 0,
       };
     }
 
-    // Check if OpenAI API key is configured
-    const openAIKey = process.env.OPENAI_API_KEY;
+    // Check cost limits before proceeding
+    if (!checkCostLimits()) {
+      console.warn('Cost limit reached, falling back to keyword analysis');
+      return analyzeWithKeywords(comments);
+    }
 
-    if (openAIKey && openAIKey !== 'your-api-key-here') {
+    // Check if OpenAI API key is configured
+    const openai = getOpenAIClient();
+
+    if (openai) {
       // Use OpenAI for advanced analysis
-      return await analyzeWithOpenAI(comments, openAIKey);
+      return await analyzeWithOpenAI(comments, openai);
     } else {
       // Use basic keyword-based analysis as fallback
       return analyzeWithKeywords(comments);
@@ -46,6 +147,7 @@ export async function analyzeFeedback(
     return {
       sentiment: 0,
       themes: [],
+      confidence: 0,
     };
   }
 }
@@ -55,45 +157,72 @@ export async function analyzeFeedback(
  */
 async function analyzeWithOpenAI(
   comments: string,
-  apiKey: string
+  openai: OpenAI
 ): Promise<FeedbackAnalysis> {
   try {
-    // Try to dynamically import OpenAI
-    // This will fail gracefully if the package is not installed
-    const openaiModule = await eval('import("openai")').catch(() => null);
-    
-    if (!openaiModule) {
-      console.warn('OpenAI package not installed, falling back to keyword analysis');
-      return analyzeWithKeywords(comments);
-    }
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    const maxTokens = parseInt(process.env.OPENAI_MAX_TOKENS || '500', 10);
+    const temperature = parseFloat(process.env.OPENAI_TEMPERATURE || '0.3');
 
-    const OpenAI = openaiModule.default;
-    const openai = new OpenAI({
-      apiKey,
-    });
+    const systemPrompt = `You are an expert AI that analyzes training feedback for Registered Training Organizations (RTOs). 
+
+Your task is to analyze feedback and provide:
+1. Overall sentiment score (-1 to 1, where -1 is very negative, 0 is neutral, and 1 is very positive)
+2. Aspect-based sentiment for:
+   - trainer: quality of instruction and trainer performance
+   - content: course material, curriculum, and learning resources
+   - facilities: physical environment, equipment, and infrastructure
+3. 3-5 key themes or topics mentioned
+4. Confidence score (0 to 1) indicating how certain you are about the analysis
+
+Return ONLY valid JSON in this exact format:
+{
+  "sentiment": number,
+  "aspects": {
+    "trainer": number or null,
+    "content": number or null,
+    "facilities": number or null
+  },
+  "themes": string[],
+  "confidence": number
+}
+
+If an aspect is not mentioned in the feedback, set it to null.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model,
       messages: [
         {
           role: 'system',
-          content: `You are an AI that analyzes training feedback. Analyze the sentiment (from -1 to 1, where -1 is very negative, 0 is neutral, and 1 is very positive) and extract 3-5 key themes or topics mentioned. Return the response in JSON format: {"sentiment": number, "themes": string[]}`,
+          content: systemPrompt,
         },
         {
           role: 'user',
           content: comments,
         },
       ],
-      temperature: 0.3,
-      max_tokens: 200,
+      temperature,
+      max_tokens: maxTokens,
       response_format: { type: 'json_object' },
     });
+
+    // Track usage and cost
+    const usage = response.usage;
+    if (usage) {
+      trackCost(usage.prompt_tokens, usage.completion_tokens);
+    }
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
     
     return {
       sentiment: Math.max(-1, Math.min(1, result.sentiment || 0)),
       themes: Array.isArray(result.themes) ? result.themes.slice(0, 5) : [],
+      confidence: Math.max(0, Math.min(1, result.confidence || 0.8)),
+      aspects: result.aspects ? {
+        trainer: result.aspects.trainer !== null ? Math.max(-1, Math.min(1, result.aspects.trainer)) : undefined,
+        content: result.aspects.content !== null ? Math.max(-1, Math.min(1, result.aspects.content)) : undefined,
+        facilities: result.aspects.facilities !== null ? Math.max(-1, Math.min(1, result.aspects.facilities)) : undefined,
+      } : undefined,
     };
   } catch (error) {
     console.error('OpenAI API error:', error);
@@ -173,9 +302,15 @@ function analyzeWithKeywords(comments: string): FeedbackAnalysis {
     }
   });
   
+  // Calculate confidence based on keyword matches
+  const totalWords = text.split(/\s+/).length;
+  const keywordMatches = positiveCount + negativeCount + themes.length;
+  const confidence = Math.min(0.6, keywordMatches / Math.max(totalWords, 10));
+  
   return {
     sentiment,
     themes: themes.slice(0, 5),
+    confidence,
   };
 }
 
@@ -198,13 +333,24 @@ export async function processAllPendingFeedback(): Promise<{
         },
         sentiment: null,
       },
-      take: 100, // Process in batches
+      take: 100, // Process in batches to avoid overwhelming the API
+      orderBy: {
+        submittedAt: 'desc', // Process newest first
+      },
     });
     
     console.log(`Found ${pendingFeedback.length} feedback items to analyze`);
     
+    if (pendingFeedback.length === 0) {
+      console.log('✅ No pending feedback to process');
+      return { processed: 0, failed: 0 };
+    }
+    
     let processed = 0;
     let failed = 0;
+    
+    // Rate limiting: add delay between API calls
+    const delayMs = 100; // 100ms delay between calls = max 10 requests/second
     
     for (const feedback of pendingFeedback) {
       try {
@@ -219,7 +365,12 @@ export async function processAllPendingFeedback(): Promise<{
         });
         
         processed++;
-        console.log(`✓ Analyzed feedback ${feedback.id}`);
+        console.log(`✓ Analyzed feedback ${feedback.id} (${processed}/${pendingFeedback.length})`);
+        
+        // Rate limiting delay
+        if (processed < pendingFeedback.length) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
       } catch (error) {
         console.error(`✗ Failed to analyze feedback ${feedback.id}:`, error);
         failed++;
@@ -227,6 +378,7 @@ export async function processAllPendingFeedback(): Promise<{
     }
     
     console.log(`✅ AI analysis complete: ${processed} processed, ${failed} failed`);
+    console.log(`💰 Monthly cost so far: $${monthlyCost.toFixed(4)}`);
     
     return { processed, failed };
   } catch (error) {
@@ -262,5 +414,177 @@ export async function analyzeSingleFeedback(feedbackId: string): Promise<void> {
     console.log(`✓ Analyzed feedback ${feedbackId} immediately`);
   } catch (error) {
     console.error(`Error analyzing feedback ${feedbackId}:`, error);
+  }
+}
+
+/**
+ * Detect sentiment trends over time periods
+ */
+export async function detectTrends(
+  filters?: {
+    type?: string;
+    trainingProductId?: string;
+    trainerId?: string;
+  }
+): Promise<{
+  current: { average: number; count: number; period: string };
+  previous: { average: number; count: number; period: string };
+  change: number;
+  direction: 'improving' | 'declining' | 'stable';
+  alert?: string;
+}> {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const where: any = {
+      sentiment: { not: null },
+    };
+
+    if (filters?.type) {
+      where.type = filters.type;
+    }
+    if (filters?.trainingProductId) {
+      where.trainingProductId = filters.trainingProductId;
+    }
+    if (filters?.trainerId) {
+      where.trainerId = filters.trainerId;
+    }
+
+    // Get recent period (last 30 days)
+    const recentFeedback = await prisma.feedback.findMany({
+      where: {
+        ...where,
+        submittedAt: { gte: thirtyDaysAgo },
+      },
+      select: { sentiment: true },
+    });
+
+    // Get previous period (30-60 days ago)
+    const previousFeedback = await prisma.feedback.findMany({
+      where: {
+        ...where,
+        submittedAt: {
+          gte: sixtyDaysAgo,
+          lt: thirtyDaysAgo,
+        },
+      },
+      select: { sentiment: true },
+    });
+
+    const recentAvg = recentFeedback.length > 0
+      ? recentFeedback.reduce((sum, f) => sum + (f.sentiment || 0), 0) / recentFeedback.length
+      : 0;
+
+    const previousAvg = previousFeedback.length > 0
+      ? previousFeedback.reduce((sum, f) => sum + (f.sentiment || 0), 0) / previousFeedback.length
+      : 0;
+
+    const change = previousAvg !== 0 ? ((recentAvg - previousAvg) / Math.abs(previousAvg)) * 100 : 0;
+
+    let direction: 'improving' | 'declining' | 'stable' = 'stable';
+    let alert: string | undefined;
+
+    if (change > 10) {
+      direction = 'improving';
+    } else if (change < -10) {
+      direction = 'declining';
+      alert = `⚠️ Sentiment declining by ${Math.abs(change).toFixed(1)}% - immediate review recommended`;
+    }
+
+    // Additional alert for very negative sentiment
+    if (recentAvg < -0.3) {
+      alert = `🚨 Critical: Average sentiment is ${recentAvg.toFixed(2)} (very negative)`;
+    }
+
+    return {
+      current: {
+        average: Math.round(recentAvg * 100) / 100,
+        count: recentFeedback.length,
+        period: 'Last 30 days',
+      },
+      previous: {
+        average: Math.round(previousAvg * 100) / 100,
+        count: previousFeedback.length,
+        period: '30-60 days ago',
+      },
+      change: Math.round(change * 10) / 10,
+      direction,
+      alert,
+    };
+  } catch (error) {
+    console.error('Error detecting trends:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get emerging themes (themes that are becoming more common)
+ */
+export async function getEmergingThemes(days: number = 30): Promise<
+  Array<{ theme: string; count: number; change: number }>
+> {
+  try {
+    const now = new Date();
+    const periodStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    const previousPeriodStart = new Date(now.getTime() - 2 * days * 24 * 60 * 60 * 1000);
+
+    // Get recent feedback
+    const recentFeedback = await prisma.feedback.findMany({
+      where: {
+        submittedAt: { gte: periodStart },
+        themes: { isEmpty: false },
+      },
+      select: { themes: true },
+    });
+
+    // Get previous period feedback
+    const previousFeedback = await prisma.feedback.findMany({
+      where: {
+        submittedAt: {
+          gte: previousPeriodStart,
+          lt: periodStart,
+        },
+        themes: { isEmpty: false },
+      },
+      select: { themes: true },
+    });
+
+    // Count themes in each period
+    const recentThemeCounts: Record<string, number> = {};
+    const previousThemeCounts: Record<string, number> = {};
+
+    recentFeedback.forEach((f) => {
+      f.themes.forEach((theme) => {
+        recentThemeCounts[theme] = (recentThemeCounts[theme] || 0) + 1;
+      });
+    });
+
+    previousFeedback.forEach((f) => {
+      f.themes.forEach((theme) => {
+        previousThemeCounts[theme] = (previousThemeCounts[theme] || 0) + 1;
+      });
+    });
+
+    // Calculate changes
+    const themes = Object.entries(recentThemeCounts).map(([theme, recentCount]) => {
+      const previousCount = previousThemeCounts[theme] || 0;
+      const change = previousCount > 0
+        ? ((recentCount - previousCount) / previousCount) * 100
+        : recentCount > 0 ? 100 : 0;
+
+      return {
+        theme,
+        count: recentCount,
+        change: Math.round(change * 10) / 10,
+      };
+    });
+
+    // Sort by change descending (most emerging first)
+    return themes.sort((a, b) => b.change - a.change).slice(0, 10);
+  } catch (error) {
+    console.error('Error getting emerging themes:', error);
+    return [];
   }
 }
