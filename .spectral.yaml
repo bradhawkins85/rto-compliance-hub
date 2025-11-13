@@ -1,0 +1,11 @@
+extends: ["spectral:oas"]
+
+rules:
+  # Adjust rule severities for our needs
+  operation-operationId: error
+  operation-tags: error
+  operation-tag-defined: error
+  path-params: error
+  info-contact: error
+  info-description: error
+  openapi-tags: warn
