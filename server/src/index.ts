@@ -28,6 +28,15 @@ import { apiRateLimiter } from './middleware/rateLimit';
 import { monitoringMiddleware, errorTrackingMiddleware } from './middleware/monitoring';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 import { getMetrics } from './controllers/monitoring';
+import { 
+  getSecurityHeadersConfig, 
+  permissionsPolicy, 
+  additionalSecurityHeaders,
+  enforceHttps,
+  validateTlsVersion 
+} from './middleware/securityHeaders';
+import { xssProtection, pathTraversalProtection } from './middleware/sanitization';
+import { csrfTokenGenerator, getCsrfToken } from './middleware/csrf';
 // Import job worker to start it
 import './services/jobWorker';
 
@@ -41,37 +50,42 @@ const prisma = new PrismaClient();
 // Create Express app
 const app: Application = express();
 
-// Security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
-    },
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
-}));
+// Enforce HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(enforceHttps);
+  app.use(validateTlsVersion);
+}
+
+// Enhanced security headers with comprehensive configuration
+app.use(helmet(getSecurityHeadersConfig()));
+
+// Additional security headers not covered by Helmet
+app.use(additionalSecurityHeaders);
+
+// Permissions Policy
+app.use(permissionsPolicy);
 
 // CORS configuration
 app.use(cors({
   origin: FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  exposedHeaders: ['X-CSRF-Token'],
 }));
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Cookie parser
+// Cookie parser (must be before CSRF)
 app.use(cookieParser());
+
+// XSS Protection - Sanitize all inputs
+app.use(xssProtection);
+
+// Path traversal protection
+app.use(pathTraversalProtection);
 
 // Monitoring middleware (before routes to track all requests)
 app.use(monitoringMiddleware);
@@ -81,6 +95,9 @@ app.use('/api', apiRateLimiter);
 
 // Prometheus metrics endpoint (no authentication required for scraping)
 app.get('/metrics', getMetrics);
+
+// CSRF token endpoint - generates and returns CSRF token
+app.get('/api/v1/csrf-token', csrfTokenGenerator, getCsrfToken);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
