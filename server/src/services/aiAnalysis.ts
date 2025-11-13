@@ -555,14 +555,14 @@ export async function getEmergingThemes(days: number = 30): Promise<
     const recentThemeCounts: Record<string, number> = {};
     const previousThemeCounts: Record<string, number> = {};
 
-    recentFeedback.forEach((f) => {
-      f.themes.forEach((theme) => {
+    recentFeedback.forEach((f: { themes: string[] }) => {
+      f.themes.forEach((theme: string) => {
         recentThemeCounts[theme] = (recentThemeCounts[theme] || 0) + 1;
       });
     });
 
-    previousFeedback.forEach((f) => {
-      f.themes.forEach((theme) => {
+    previousFeedback.forEach((f: { themes: string[] }) => {
+      f.themes.forEach((theme: string) => {
         previousThemeCounts[theme] = (previousThemeCounts[theme] || 0) + 1;
       });
     });
