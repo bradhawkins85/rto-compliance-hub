@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import cors from 'cors';
+import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import policiesRoutes from './routes/policies';
@@ -30,6 +31,9 @@ import './services/jobWorker';
 // Load environment variables
 const PORT = process.env.APP_PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Create Prisma client for health checks
+const prisma = new PrismaClient();
 
 // Create Express app
 const app: Application = express();
@@ -70,12 +74,25 @@ app.use(cookieParser());
 app.use('/api', apiRateLimiter);
 
 // Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({
+app.get('/health', async (_req: Request, res: Response) => {
+  const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-  });
+    database: 'connected',
+    version: process.env.npm_package_version || '1.0.0',
+  };
+
+  try {
+    // Check database connectivity
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    health.status = 'unhealthy';
+    health.database = 'disconnected';
+    return res.status(503).json(health);
+  }
+
+  res.status(200).json(health);
 });
 
 // API routes
@@ -124,7 +141,7 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
@@ -135,11 +152,27 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+const shutdown = async () => {
+  console.log('Shutting down gracefully...');
+  
+  // Stop accepting new connections
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+  
+  // Stop scheduled jobs
   stopAllScheduledJobs();
+  
+  // Close database connections
+  await prisma.$disconnect();
+  console.log('Database connections closed');
+  
   process.exit(0);
-});
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing HTTP server');

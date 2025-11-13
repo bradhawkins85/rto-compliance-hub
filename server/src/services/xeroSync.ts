@@ -117,7 +117,7 @@ export async function syncEmployees(
         const department = mapDepartment(xeroEmployee.jobTitle);
 
         // Check if employee already exists by Xero ID
-        let user = await prisma.user.findFirst({
+        const user = await prisma.user.findFirst({
           where: { xeroEmployeeId },
         });
 

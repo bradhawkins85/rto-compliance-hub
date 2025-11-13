@@ -1,0 +1,58 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Build outputs
+dist
+dist-ssr
+server/dist
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Testing
+coverage
+.nyc_output
+test-results
+playwright-report
+
+# Editor
+.vscode
+.idea
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Logs
+logs
+*.log
+
+# Misc
+*.md
+!README.md
+.github
+.spark-workbench-id
+.spark-initial-sha
+packages
+pids
+.file-manifest
+.devcontainer
+
+# Development files
+src
+tests
+vitest.config.ts
+playwright.config.ts
+eslint.config.js
+tailwind.config.js
+vite.config.ts
+tsconfig.json
+components.json
+theme.json
+runtime.config.json
+prisma.config.ts
