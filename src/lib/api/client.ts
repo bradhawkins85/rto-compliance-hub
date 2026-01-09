@@ -1,99 +1,153 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-
-// API base URL from environment or default
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-// Create axios instance
-export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // Important for httpOnly cookies
-  timeout: 30000,
-});
+interface RequestConfig extends RequestInit {
+  params?: Record<string, string>;
+  timeout?: number;
+  _retry?: boolean;
+}
 
-// Request interceptor
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // Log requests in development
-    if (import.meta.env.DEV) {
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
-        params: config.params,
-        data: config.data,
-      });
-    }
-    return config;
-  },
-  (error) => {
-    console.error('[API Request Error]', error);
-    return Promise.reject(error);
+class ApiClient {
+  private baseURL: string;
+  private defaultTimeout: number;
+
+  constructor(baseURL: string, timeout = 30000) {
+    this.baseURL = baseURL;
+    this.defaultTimeout = timeout;
   }
-);
 
-// Response interceptor
-apiClient.interceptors.response.use(
-  (response) => {
-    // Log responses in development
+  private buildUrl(url: string, params?: Record<string, string>): string {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    if (!params) return fullUrl;
+
+    const urlObj = new URL(fullUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      urlObj.searchParams.append(key, value);
+    });
+    return urlObj.toString();
+  }
+
+  private async fetchWithTimeout(url: string, config: RequestConfig): Promise<Response> {
+    const timeout = config.timeout || this.defaultTimeout;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...config,
+        signal: controller.signal,
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...config.headers,
+        },
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
+  async request<T>(url: string, config: RequestConfig = {}): Promise<T> {
+    const { params, ...fetchConfig } = config;
+    const fullUrl = this.buildUrl(url, params);
+
     if (import.meta.env.DEV) {
-      console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-        status: response.status,
-        data: response.data,
+      console.log(`[API Request] ${config.method?.toUpperCase() || 'GET'} ${url}`, {
+        params,
+        data: config.body,
       });
     }
-    return response;
-  },
-  async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Log errors in development
-    if (import.meta.env.DEV) {
-      console.error('[API Response Error]', {
-        url: error.config?.url,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-    }
+    try {
+      const response = await this.fetchWithTimeout(fullUrl, fetchConfig);
 
-    // Handle 401 Unauthorized - try to refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        // Try to refresh the token
-        await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-
-        // Retry the original request
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed - redirect to login
-        console.error('[Token Refresh Failed]', refreshError);
-        // Clear any local state and redirect
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+      if (import.meta.env.DEV) {
+        console.log(`[API Response] ${config.method?.toUpperCase() || 'GET'} ${url}`, {
+          status: response.status,
+        });
       }
+
+      if (!response.ok) {
+        if (response.status === 401 && !config._retry) {
+          try {
+            await this.post('/auth/refresh', {}, { _retry: true });
+            return this.request<T>(url, { ...config, _retry: true });
+          } catch (refreshError) {
+            console.error('[Token Refresh Failed]', refreshError);
+            window.location.href = '/login';
+            throw refreshError;
+          }
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        if (import.meta.env.DEV) {
+          console.error('[API Response Error]', {
+            url,
+            status: response.status,
+            data: errorData,
+          });
+        }
+        throw { response: { status: response.status, data: errorData }, message: response.statusText };
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[API Request Error]', error);
+      throw error;
     }
-
-    return Promise.reject(error);
   }
-);
 
-// Helper function to handle API errors
+  async get<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.request<T>(url, { ...config, method: 'GET' });
+  }
+
+  async post<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.request<T>(url, {
+      ...config,
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.request<T>(url, {
+      ...config,
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async patch<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+    return this.request<T>(url, {
+      ...config,
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.request<T>(url, { ...config, method: 'DELETE' });
+  }
+}
+
+export const apiClient = new ApiClient(API_BASE_URL);
+
 export function getApiErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    // RFC 7807 Problem Details
-    const problemDetails = error.response?.data;
+  if (error && typeof error === 'object' && 'response' in error) {
+    const apiError = error as { response?: { data?: { detail?: string; title?: string } }; message?: string };
+    const problemDetails = apiError.response?.data;
     if (problemDetails?.detail) {
       return problemDetails.detail;
     }
     if (problemDetails?.title) {
       return problemDetails.title;
     }
-    return error.message || 'An unexpected error occurred';
+    if (apiError.message) {
+      return apiError.message;
+    }
   }
   if (error instanceof Error) {
     return error.message;
