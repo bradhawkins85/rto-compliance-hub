@@ -3,6 +3,7 @@ import * as authController from '../controllers/auth';
 import { authenticate } from '../middleware/auth';
 import { loginRateLimiter, passwordResetRateLimiter } from '../middleware/rateLimit';
 import { auditAuthEvent, auditFailedAuth } from '../middleware/audit';
+import { csrfProtection } from '../middleware/csrf';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ const router = Router();
 router.post(
   '/login',
   loginRateLimiter,
+  csrfProtection,
   auditAuthEvent('login_attempt'),
   auditFailedAuth('login_failed'),
   authController.login
@@ -27,6 +29,7 @@ router.post(
 router.post(
   '/logout',
   authenticate,
+  csrfProtection,
   auditAuthEvent('logout'),
   authController.logout
 );
@@ -38,6 +41,7 @@ router.post(
  */
 router.post(
   '/refresh',
+  csrfProtection,
   auditAuthEvent('token_refresh'),
   authController.refresh
 );
@@ -50,6 +54,7 @@ router.post(
 router.post(
   '/change-password',
   authenticate,
+  csrfProtection,
   auditAuthEvent('password_change'),
   authController.changePassword
 );
@@ -62,6 +67,7 @@ router.post(
 router.post(
   '/reset-password',
   passwordResetRateLimiter,
+  csrfProtection,
   auditAuthEvent('password_reset'),
   authController.resetPassword
 );

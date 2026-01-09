@@ -2,6 +2,9 @@ import apiClient from './client';
 import type {
   Feedback,
   FeedbackInsights,
+  AICostStats,
+  FeedbackTrend,
+  EmergingThemesResponse,
   PaginatedResponse,
   ListFeedbackParams,
   FeedbackInsightsParams,
@@ -75,6 +78,38 @@ export const feedbackApi = {
     const response = await apiClient.get<FeedbackInsights>('/feedback/insights', {
       params,
     });
+    return response.data;
+  },
+
+  /**
+   * Get sentiment trends over time
+   */
+  async getTrends(params?: {
+    type?: string;
+    trainingProductId?: string;
+    trainerId?: string;
+  }): Promise<FeedbackTrend> {
+    const response = await apiClient.get<FeedbackTrend>('/feedback/trends', {
+      params,
+    });
+    return response.data;
+  },
+
+  /**
+   * Get emerging themes analysis
+   */
+  async getEmergingThemes(days?: number): Promise<EmergingThemesResponse> {
+    const response = await apiClient.get<EmergingThemesResponse>('/feedback/emerging-themes', {
+      params: { days },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get AI cost statistics
+   */
+  async getAICostStats(): Promise<AICostStats> {
+    const response = await apiClient.get<AICostStats>('/feedback/ai-cost');
     return response.data;
   },
 

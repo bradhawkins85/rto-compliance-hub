@@ -2,6 +2,11 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yaml';
+import fs from 'fs';
+import path from 'path';
+import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import policiesRoutes from './routes/policies';
@@ -20,57 +25,125 @@ import assetsRoutes from './routes/assets';
 import complaintsRoutes from './routes/complaints';
 import onboardingRoutes from './routes/onboarding';
 import { apiRateLimiter } from './middleware/rateLimit';
+import { monitoringMiddleware, errorTrackingMiddleware } from './middleware/monitoring';
 import { initializeScheduler, stopAllScheduledJobs } from './services/scheduler';
 
 // Load environment variables
 const PORT = process.env.APP_PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// Create Prisma client for health checks
+const prisma = new PrismaClient();
+
 // Create Express app
 const app: Application = express();
 
-// Security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
-    },
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
-}));
+// Enforce HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(enforceHttps);
+  app.use(validateTlsVersion);
+}
+
+// Enhanced security headers with comprehensive configuration
+app.use(helmet(getSecurityHeadersConfig()));
+
+// Additional security headers not covered by Helmet
+app.use(additionalSecurityHeaders);
+
+// Permissions Policy
+app.use(permissionsPolicy);
 
 // CORS configuration
 app.use(cors({
   origin: FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  exposedHeaders: ['X-CSRF-Token'],
 }));
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Cookie parser
+// Cookie parser (must be before CSRF)
 app.use(cookieParser());
+
+// XSS Protection - Sanitize all inputs
+app.use(xssProtection);
+
+// Path traversal protection
+app.use(pathTraversalProtection);
+
+// Monitoring middleware (before routes to track all requests)
+app.use(monitoringMiddleware);
 
 // Apply rate limiting to all API routes
 app.use('/api', apiRateLimiter);
 
+// Prometheus metrics endpoint (no authentication required for scraping)
+app.get('/metrics', getMetrics);
+
+// CSRF token endpoint - generates and returns CSRF token
+app.get('/api/v1/csrf-token', csrfTokenGenerator, getCsrfToken);
+
+// Load OpenAPI specification
+const openApiPath = path.join(__dirname, '../../openapi.yaml');
+let swaggerDocument: any = {};
+try {
+  const fileContents = fs.readFileSync(openApiPath, 'utf8');
+  swaggerDocument = YAML.parse(fileContents);
+  console.log('✅ OpenAPI specification loaded successfully');
+} catch (error) {
+  console.error('⚠️  Failed to load OpenAPI specification:', error);
+}
+
+// Swagger UI options
+const swaggerOptions = {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'RTO Compliance Hub API Documentation',
+  customfavIcon: '/favicon.ico'
+};
+
+// Serve OpenAPI/Swagger documentation at /api/docs
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+
+// Serve raw OpenAPI spec as JSON
+app.get('/api/openapi.json', (_req: Request, res: Response) => {
+  res.json(swaggerDocument);
+});
+
+// Serve raw OpenAPI spec as YAML
+app.get('/api/openapi.yaml', (_req: Request, res: Response) => {
+  res.type('text/yaml');
+  try {
+    const fileContents = fs.readFileSync(openApiPath, 'utf8');
+    res.send(fileContents);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load OpenAPI specification' });
+  }
+});
+
 // Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({
+app.get('/health', async (_req: Request, res: Response) => {
+  const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-  });
+    database: 'connected',
+    version: process.env.npm_package_version || '1.0.0',
+  };
+
+  try {
+    // Check database connectivity
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    health.status = 'unhealthy';
+    health.database = 'disconnected';
+    return res.status(503).json(health);
+  }
+
+  res.status(200).json(health);
 });
 
 // API routes
@@ -102,6 +175,9 @@ app.use((_req: Request, res: Response) => {
   });
 });
 
+// Error tracking middleware
+app.use(errorTrackingMiddleware);
+
 // Error handler
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('Error:', err);
@@ -116,22 +192,39 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
   
   // Initialize scheduled jobs
   initializeScheduler();
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+const shutdown = async () => {
+  console.log('Shutting down gracefully...');
+  
+  // Stop accepting new connections
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+  
+  // Stop scheduled jobs
   stopAllScheduledJobs();
+  
+  // Close database connections
+  await prisma.$disconnect();
+  console.log('Database connections closed');
+  
   process.exit(0);
-});
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing HTTP server');

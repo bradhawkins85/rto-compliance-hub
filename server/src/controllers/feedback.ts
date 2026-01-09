@@ -14,7 +14,7 @@ import {
   updateFeedbackSchema,
   formatValidationErrors,
 } from '../utils/validation';
-import { analyzeSingleFeedback } from '../services/aiAnalysis';
+import { analyzeSingleFeedback, getCostStats, detectTrends, getEmergingThemes } from '../services/aiAnalysis';
 
 const prisma = new PrismaClient();
 
@@ -778,4 +778,86 @@ function escapeCSV(value: any): string {
   }
   
   return str;
+}
+
+/**
+ * Get AI cost statistics
+ * GET /api/v1/feedback/ai-cost
+ */
+export async function getAICostStats(req: Request, res: Response): Promise<void> {
+  try {
+    const stats = getCostStats();
+    
+    const monthlyLimit = parseFloat(process.env.AI_COST_LIMIT_MONTHLY || '100');
+    const percentUsed = (stats.estimatedCost / monthlyLimit) * 100;
+    
+    res.status(200).json({
+      ...stats,
+      monthlyLimit,
+      percentUsed: Math.round(percentUsed * 10) / 10,
+      status: percentUsed >= 100 ? 'limit_reached' : percentUsed >= 80 ? 'warning' : 'ok',
+    });
+  } catch (error) {
+    console.error('Error getting AI cost stats:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Failed to retrieve AI cost statistics',
+      instance: req.path,
+    });
+  }
+}
+
+/**
+ * Get trend analysis
+ * GET /api/v1/feedback/trends
+ */
+export async function getTrends(req: Request, res: Response): Promise<void> {
+  try {
+    const { type, trainingProductId, trainerId } = req.query;
+    
+    const trends = await detectTrends({
+      type: type as string | undefined,
+      trainingProductId: trainingProductId as string | undefined,
+      trainerId: trainerId as string | undefined,
+    });
+    
+    res.status(200).json(trends);
+  } catch (error) {
+    console.error('Error getting trends:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Failed to retrieve trend analysis',
+      instance: req.path,
+    });
+  }
+}
+
+/**
+ * Get emerging themes
+ * GET /api/v1/feedback/emerging-themes
+ */
+export async function getEmergingThemesController(req: Request, res: Response): Promise<void> {
+  try {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 30;
+    
+    const themes = await getEmergingThemes(days);
+    
+    res.status(200).json({
+      period: `${days} days`,
+      themes,
+    });
+  } catch (error) {
+    console.error('Error getting emerging themes:', error);
+    res.status(500).json({
+      type: 'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'Failed to retrieve emerging themes',
+      instance: req.path,
+    });
+  }
 }

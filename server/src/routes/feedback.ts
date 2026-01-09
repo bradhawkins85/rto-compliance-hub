@@ -42,6 +42,42 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/feedback/trends
+ * @desc    Get sentiment trends over time
+ * @access  Private - requires 'read' permission on 'feedback'
+ */
+router.get(
+  '/trends',
+  authenticate,
+  requirePermission('feedback', 'read'),
+  feedbackController.getTrends
+);
+
+/**
+ * @route   GET /api/v1/feedback/emerging-themes
+ * @desc    Get emerging themes analysis
+ * @access  Private - requires 'read' permission on 'feedback'
+ */
+router.get(
+  '/emerging-themes',
+  authenticate,
+  requirePermission('feedback', 'read'),
+  feedbackController.getEmergingThemesController
+);
+
+/**
+ * @route   GET /api/v1/feedback/ai-cost
+ * @desc    Get AI cost statistics
+ * @access  Private - requires 'read' permission on 'feedback'
+ */
+router.get(
+  '/ai-cost',
+  authenticate,
+  requirePermission('feedback', 'read'),
+  feedbackController.getAICostStats
+);
+
+/**
  * @route   GET /api/v1/feedback/export
  * @desc    Export feedback data as CSV
  * @access  Private - requires 'read' permission on 'feedback'
